@@ -15,9 +15,10 @@ export default async function CmsPage() {
   const { data } = await auth.getSession();
   if (!data?.user) redirect('/auth/sign-in');
 
-  const [canRead, canCreate, canAudit] = await Promise.all([
+  const [canRead, canCreate, canUpdate, canAudit] = await Promise.all([
     hasPermission(data.user.id, 'cms.posts.read'),
     hasPermission(data.user.id, 'cms.posts.create'),
+    hasPermission(data.user.id, 'cms.posts.update'),
     hasPermission(data.user.id, 'cms.seo.audit'),
   ]);
 
@@ -34,5 +35,5 @@ export default async function CmsPage() {
     );
   }
 
-  return <CmsWorkspace userName={data.user.name || data.user.email || 'Editor'} canCreate={canCreate} canAudit={canAudit} />;
+  return <CmsWorkspace userName={data.user.name || data.user.email || 'Editor'} canCreate={canCreate} canUpdate={canUpdate} canAudit={canAudit} />;
 }
