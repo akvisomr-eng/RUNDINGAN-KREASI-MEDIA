@@ -53,7 +53,7 @@ export default function Home() {
         </div>
 
         <div className="metro-hero-board" aria-label="Pilihan konten dan unit bisnis Rundingan">
-          <a className="metro-tile tile-featured" href="https://www.youtube.com/watch?v=IlsxmhJ5g1A" target="_blank" rel="noreferrer">
+          <div className="metro-tile tile-featured">
             <div className="tile-media">
               <iframe
                 src="https://www.youtube-nocookie.com/embed/IlsxmhJ5g1A?rel=0&modestbranding=1"
@@ -64,9 +64,8 @@ export default function Home() {
                 allowFullScreen
               />
             </div>
-            <span className="tile-play" aria-hidden="true">▶</span>
-            <span className="tile-caption"><small>FEATURED PODCAST / ZONA NYAMAN</small><strong>Khilma Anis — Hati Suhita</strong><em>Putar di YouTube ↗</em></span>
-          </a>
+            <span className="tile-caption"><small>FEATURED PODCAST / ZONA NYAMAN</small><strong>Khilma Anis — Hati Suhita</strong><a href="https://www.youtube.com/watch?v=IlsxmhJ5g1A" target="_blank" rel="noreferrer">Buka di YouTube ↗</a></span>
+          </div>
           <a className="metro-tile tile-video tile-video-two" href="https://www.youtube.com/watch?v=nAUd9vJXcys" target="_blank" rel="noreferrer" style={{ backgroundImage: "linear-gradient(180deg, transparent 20%, rgba(3,18,38,.88)), url(https://img.youtube.com/vi/nAUd9vJXcys/hqdefault.jpg)" }}>
             <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>PODCAST / RUNDINGAN</small><strong>Perempuan Bukan Objek Seksual</strong></span>
           </a>
