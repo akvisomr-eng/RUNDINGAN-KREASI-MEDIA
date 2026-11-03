@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/server';
+import { hasPermission } from '@/lib/auth/permissions';
 import { getSql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const { data } = await auth.getSession();
   const user = data?.user;
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await hasPermission(user.id, 'cms.posts.update'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { id } = await context.params;
   let body: Record<string, unknown>;
