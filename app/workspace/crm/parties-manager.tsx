@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 
 type Party = {
   id: string;
@@ -13,7 +14,7 @@ type Party = {
   created_at: string;
 };
 
-export function PartiesManager() {
+export function PartiesManager({ canCreate }: { canCreate: boolean }) {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,7 +73,7 @@ export function PartiesManager() {
 
   return (
     <div className="crm-layout">
-      <section className="crm-form-panel">
+      {canCreate ? <section className="crm-form-panel">
         <p className="auth-eyebrow">MASTER DATA / SHARED RECORDS</p>
         <h2>Tambah relasi bisnis</h2>
         <p className="crm-hint">Satu data dapat digunakan lintas unit bisnis tanpa duplikasi.</p>
@@ -99,7 +100,7 @@ export function PartiesManager() {
           <button type="submit" disabled={saving || !legalName.trim()}>{saving ? 'Menyimpan…' : 'Simpan relasi ↗'}</button>
         </form>
         {error ? <p className="crm-error" role="alert">{error}</p> : null}
-      </section>
+      </section> : null}
       <section className="crm-list-panel">
         <div className="crm-list-heading">
           <div><p className="auth-eyebrow">DATABASE / CRM</p><h2>Daftar relasi</h2></div>
