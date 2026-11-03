@@ -15,13 +15,13 @@ export async function GET() {
 
   try {
     const sql = getSql();
-    const posts = await sql`
+    const posts = (await sql`
       SELECT id, title, slug, excerpt, status, seo_title, seo_description,
              focus_keyword, created_at, updated_at, published_at
       FROM cms_posts
       ORDER BY updated_at DESC
       LIMIT 100
-    `;
+    `) as unknown as Array<Record<string, unknown>>;
     return NextResponse.json({ posts });
   } catch {
     return NextResponse.json({ error: 'CMS database is not ready. Apply the custom CMS migration first.' }, { status: 503 });
@@ -56,14 +56,14 @@ export async function POST(request: Request) {
 
   try {
     const sql = getSql();
-    const rows = await sql`
+    const rows = (await sql`
       INSERT INTO cms_posts
         (title, slug, excerpt, content, seo_title, seo_description, focus_keyword, created_by, updated_by)
       VALUES
         (${title}, ${slug}, ${excerpt}, ${content}, ${seoTitle}, ${seoDescription}, ${focusKeyword},
          ${String(user.id)}, ${String(user.id)})
       RETURNING id, title, slug, status, created_at, updated_at
-    `;
+    `) as unknown as Array<Record<string, unknown>>;
     return NextResponse.json({ post: rows[0] }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error && error.message.toLowerCase().includes('unique')
