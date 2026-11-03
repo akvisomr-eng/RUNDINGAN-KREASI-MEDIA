@@ -24,6 +24,6 @@ export async function hasPermission(
         )
     ) AS allowed
   `;
-  const firstRow = Array.isArray(rows) ? rows[0] : rows.rows[0];
-  return firstRow?.allowed === true;
+  const resultRows = rows as unknown as Array<{ allowed: boolean }>;
+  return resultRows[0]?.allowed === true;
 }
