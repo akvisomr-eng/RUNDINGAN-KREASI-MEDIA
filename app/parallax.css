@@ -97,5 +97,6 @@
 @media (max-width: 540px) {
   .topbar nav a:not(.nav-cta) { display: none; }
   .mobile-menu { display: block; }
+  .topbar nav .mobile-menu-panel a { display: block; }
   .topbar nav { gap: 12px; }
 }
