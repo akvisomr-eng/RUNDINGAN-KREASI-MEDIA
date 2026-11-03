@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/server';
+import { hasPermission } from '@/lib/auth/permissions';
 import { runSeoAgents } from '@/lib/cms/seo-agents';
 
 export async function POST(request: Request) {
   const { data } = await auth.getSession();
-  if (!data?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = data?.user;
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await hasPermission(user.id, 'cms.seo.audit'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   let body: Record<string, unknown>;
   try {
