@@ -1,31 +1,30 @@
 # Authentication and access control — development
 
 ## Provisioning state
-- Neon Managed Auth (Better Auth) has been provisioned only on the Neon development branch.
-- Auth endpoint is branch-specific; read it from Neon project configuration and store it as `NEON_AUTH_BASE_URL` in Vercel Preview environment variables.
-- Never commit auth URLs containing credentials, cookie secrets, provider secrets, or database URLs.
-- Production Neon branch has not been provisioned or changed.
+- Neon Managed Auth (Better Auth) is provisioned only on the Neon `development` branch.
+- The Auth endpoint and database connection are stored as encrypted Vercel Preview variables scoped to `feat/master-data-and-auth`.
+- A unique cookie secret is stored as an encrypted Preview variable. No secrets or database URLs are committed.
+- Production Neon and Vercel environments have not been modified.
 
-## Application integration prerequisites
-- The app currently uses Next.js 15.5.28. Current `@neondatabase/auth/next` integration declares a Next.js 16+ peer requirement; do not install it into the existing app until the framework upgrade is separately reviewed and CI passes.
-- Upgrade to a supported stable Next.js 16 patch, then add the pinned `@neondatabase/auth` and `@neondatabase/auth-ui` dependencies.
-- Implement the auth proxy route, sign-in/sign-up/recovery views, session-aware navigation, and route protection. Keep public marketing pages and static assets public.
-- Use email/password initially. Social OAuth requires company-owned OAuth credentials and is intentionally not configured.
-- Generate a unique `NEON_AUTH_COOKIE_SECRET` (32+ characters) and set it only in Vercel Preview environment variables.
-- Add each exact Vercel Preview/production origin to the Neon Auth trusted-domain allowlist before using redirects.
+## Application integration
+- Next.js is upgraded to the supported 16.x line for the current Neon Next adapter.
+- Neon Auth packages are pinned to compatible beta releases. Keep `@neondatabase/auth` at `0.6.0-beta` while `@neondatabase/auth-ui` is `0.4.0-beta`; the latter declares the matching peer dependency.
+- Email/password sign-in and Auth UI routes are wired through the same-origin `/api/auth/*` proxy.
+- Only `/workspace/*` is protected by the Next.js proxy. Private API handlers independently check the session and return 401 when unauthenticated.
+- Social OAuth is not configured. Company-owned provider credentials are required before enabling it.
 
 ## Authorization model
-- Identity is managed by Neon Auth. App authorization lives in `roles`, `permissions`, `role_permissions`, and `user_role_assignments`.
+- Neon Auth manages identity. Application authorization is stored in `roles`, `permissions`, `role_permissions`, and `user_role_assignments`.
 - Neon Auth user IDs are stored as text; application tables do not depend on Neon-managed internal table names.
 - Access can be organization-wide or scoped to a business unit.
-- Never grant Owner or Administrator automatically to the first person who signs up. Initial owner assignment requires an explicit, verified administrative action.
-- Enforce permissions in server-side route handlers and domain services; hiding UI controls is not authorization.
-- Do not enable RLS until authenticated DB access and all required policies have been implemented and tested.
+- The initial role/permission seed is a baseline only. No user has been assigned Owner or Administrator.
+- Every private API must check both the authenticated session and the required permission in server-side code. UI visibility is not authorization.
+- Do not enable RLS until authenticated database access and all required policies have been implemented and tested.
 
-## Required verification before enabling login for real users
-1. Sign-up and email verification.
-2. Sign-in, sign-out, and session restoration after reload.
-3. Protected routes redirect correctly while public pages remain public.
-4. Direct unauthenticated API requests return 401.
+## Required verification before real users
+1. Sign-up, sign-in, sign-out, and session restoration.
+2. Email verification behavior and SMTP production readiness.
+3. Public pages remain public; workspace redirects without a session.
+4. Direct unauthenticated private API requests return 401.
 5. Cross-unit and cross-organization authorization tests deny access.
 6. Role assignment, revocation, and audit logging.
