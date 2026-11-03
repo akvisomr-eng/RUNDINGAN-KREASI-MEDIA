@@ -13,8 +13,13 @@ export default async function CmsPage() {
   const { data } = await auth.getSession();
   if (!data?.user) redirect('/auth/sign-in');
 
-  const allowed = await hasPermission(data.user.id, 'cms.posts.read');
-  if (!allowed) {
+  const [canRead, canCreate, canAudit] = await Promise.all([
+    hasPermission(data.user.id, 'cms.posts.read'),
+    hasPermission(data.user.id, 'cms.posts.create'),
+    hasPermission(data.user.id, 'cms.seo.audit'),
+  ]);
+
+  if (!canRead) {
     return (
       <main className="cms-shell">
         <section className="cms-panel" style={{ maxWidth: 680, margin: '12vh auto' }}>
@@ -27,5 +32,5 @@ export default async function CmsPage() {
     );
   }
 
-  return <CmsWorkspace userName={data.user.name || data.user.email || 'Editor'} />;
+  return <CmsWorkspace userName={data.user.name || data.user.email || 'Editor'} canCreate={canCreate} canAudit={canAudit} />;
 }
