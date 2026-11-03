@@ -31,6 +31,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const origin = request.headers.get('origin');
+  const requestHost = request.headers.get('host');
+  if (!origin || !requestHost || new URL(origin).host !== requestHost) {
+    return Response.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
   const { data: session } = await auth.getSession();
   if (!session?.user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -59,7 +65,7 @@ export async function POST(request: Request) {
   const email = typeof input.email === 'string' ? input.email.trim() : null;
   const phone = typeof input.phone === 'string' ? input.phone.trim() : null;
 
-  if (!['customer', 'supplier', 'both'].includes(String(partyType))) {
+  if (partyType !== 'customer' && partyType !== 'supplier' && partyType !== 'both') {
     return Response.json({ error: 'party_type must be customer, supplier, or both.' }, { status: 400 });
   }
   if (!legalName || legalName.length > 200 || !displayName || displayName.length > 160) {
