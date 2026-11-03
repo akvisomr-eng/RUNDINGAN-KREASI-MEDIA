@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/server';
+import { hasPermission } from '@/lib/auth/permissions';
 import { getSql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,9 @@ async function currentUser() {
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await hasPermission(user.id, 'cms.posts.read'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   try {
     const sql = getSql();
@@ -31,6 +35,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await hasPermission(user.id, 'cms.posts.create'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   let body: Record<string, unknown>;
   try {
