@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import '@neondatabase/auth-ui/css';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Rundingan Kreasi Media | Ideas into meaningful experiences',
@@ -10,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="id"><body>{children}</body></html>;
+  return <html lang="id"><body><Providers>{children}</Providers></body></html>;
 }
