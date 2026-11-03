@@ -44,7 +44,7 @@ export default async function EnterpriseCorePage() {
     FROM organizations o
     WHERE o.slug = 'rundingan-kreasi-media' AND o.deleted_at IS NULL
     LIMIT 1
-  `;
+  ` as unknown as Array<{ name: string; legal_name: string | null; slug: string; status: string; timezone: string; default_currency: string; business_units: number; departments: number; locations: number; active_roles: number; active_assignments: number; audit_events: number }>;
   const organization = rows[0] as {
     name: string; legal_name: string | null; slug: string; status: string;
     timezone: string; default_currency: string; business_units: number;
