@@ -9,6 +9,7 @@ export default async function WorkspacePage() {
   if (!session?.user) redirect('/auth/sign-in');
 
   const canReadCrm = await hasPermission(session.user.id, 'crm.parties.read');
+  const canReadCms = await hasPermission(session.user.id, 'cms.posts.read');
 
   return (
     <main className="workspace-shell">
@@ -26,13 +27,18 @@ export default async function WorkspacePage() {
             <strong>CRM & Relasi Bisnis</strong>
             <small>{canReadCrm ? 'Buka data pelanggan dan pemasok ↗' : 'Menunggu penugasan izin CRM'}</small>
           </a>
+          <a className={canReadCms ? 'workspace-module' : 'workspace-module is-locked'} href={canReadCms ? '/cms' : '#akses'}>
+            <span>02 / CONTENT MANAGEMENT</span>
+            <strong>CMS & SEO Studio</strong>
+            <small>{canReadCms ? 'Kelola artikel, metadata, dan audit SEO ↗' : 'Menunggu penugasan izin CMS'}</small>
+          </a>
           <div className="workspace-module is-locked" id="akses">
-            <span>02 / ENTERPRISE CORE</span>
+            <span>03 / ENTERPRISE CORE</span>
             <strong>Administrasi Perusahaan</strong>
             <small>Menunggu aktivasi peran administrator</small>
           </div>
         </div>
-        <div className="workspace-status"><span className={canReadCrm ? 'is-active' : ''} /> {canReadCrm ? 'Autentikasi aktif · Izin CRM aktif' : 'Autentikasi aktif · Hak akses operasional belum diberikan'}</div>
+        <div className="workspace-status"><span className={canReadCrm || canReadCms ? 'is-active' : ''} /> {canReadCrm || canReadCms ? 'Autentikasi aktif · Izin modul tersedia' : 'Autentikasi aktif · Hak akses operasional belum diberikan'}</div>
         <a className="workspace-link" href="/">Kembali ke website publik ↗</a>
       </section>
     </main>
