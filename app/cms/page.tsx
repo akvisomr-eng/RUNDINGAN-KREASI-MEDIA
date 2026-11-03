@@ -4,6 +4,8 @@ import { hasPermission } from '@/lib/auth/permissions';
 import CmsWorkspace from './workspace';
 import './cms.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'CMS Workspace | Rundingan Kreasi Media',
   robots: { index: false, follow: false },
