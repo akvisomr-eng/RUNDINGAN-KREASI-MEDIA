@@ -95,7 +95,8 @@ export async function POST(request: Request) {
     RETURNING id, party_type, legal_name, display_name, email, phone, status, created_at
   `;
 
-  const party = Array.isArray(rows) ? rows[0] : rows.rows[0];
+  const resultRows = rows as unknown as Array<{ id: string; party_type: string; legal_name: string; display_name: string; email: string | null; phone: string | null; status: string; created_at: string }>;
+  const party = resultRows[0];
   if (!party) {
     return Response.json({ error: 'Organization not found.' }, { status: 500 });
   }
