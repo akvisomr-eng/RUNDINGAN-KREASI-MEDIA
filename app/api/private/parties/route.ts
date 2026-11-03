@@ -33,8 +33,14 @@ export async function GET() {
 export async function POST(request: Request) {
   const origin = request.headers.get('origin');
   const requestHost = request.headers.get('host');
-  if (!origin || !requestHost || new URL(origin).host !== requestHost) {
-    return Response.json({ error: 'Invalid request origin.' }, { status: 403 });
+  if (origin) {
+    try {
+      if (!requestHost || new URL(origin).host !== requestHost) {
+        return Response.json({ error: 'Invalid request origin.' }, { status: 403 });
+      }
+    } catch {
+      return Response.json({ error: 'Invalid request origin.' }, { status: 403 });
+    }
   }
 
   const { data: session } = await auth.getSession();
