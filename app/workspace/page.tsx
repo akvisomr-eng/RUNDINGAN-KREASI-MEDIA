@@ -8,8 +8,11 @@ export default async function WorkspacePage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect('/auth/sign-in');
 
-  const canReadCrm = await hasPermission(session.user.id, 'crm.parties.read');
-  const canReadCms = await hasPermission(session.user.id, 'cms.posts.read');
+  const [canReadCrm, canReadCms, canReadEnterprise] = await Promise.all([
+    hasPermission(session.user.id, 'crm.parties.read'),
+    hasPermission(session.user.id, 'cms.posts.read'),
+    hasPermission(session.user.id, 'core.organization.read'),
+  ]);
 
   return (
     <main className="workspace-shell">
@@ -32,13 +35,13 @@ export default async function WorkspacePage() {
             <strong>CMS & SEO Studio</strong>
             <small>{canReadCms ? 'Kelola artikel, metadata, dan audit SEO ↗' : 'Menunggu penugasan izin CMS'}</small>
           </a>
-          <div className="workspace-module is-locked" id="akses">
+          <a className={canReadEnterprise ? 'workspace-module' : 'workspace-module is-locked'} href={canReadEnterprise ? '/workspace/enterprise' : '#akses'}>
             <span>03 / ENTERPRISE CORE</span>
             <strong>Administrasi Perusahaan</strong>
-            <small>Menunggu aktivasi peran administrator</small>
-          </div>
+            <small>{canReadEnterprise ? 'Buka pusat administrasi organisasi ↗' : 'Memerlukan izin administrasi organisasi'}</small>
+          </a>
         </div>
-        <div className="workspace-status"><span className={canReadCrm || canReadCms ? 'is-active' : ''} /> {canReadCrm || canReadCms ? 'Autentikasi aktif · Izin modul tersedia' : 'Autentikasi aktif · Hak akses operasional belum diberikan'}</div>
+        <div className="workspace-status"><span className={canReadCrm || canReadCms || canReadEnterprise ? 'is-active' : ''} /> {canReadCrm || canReadCms || canReadEnterprise ? 'Autentikasi aktif · Izin modul tersedia' : 'Autentikasi aktif · Hak akses operasional belum diberikan'}</div>
         <a className="workspace-link" href="/">Kembali ke website publik ↗</a>
       </section>
     </main>
