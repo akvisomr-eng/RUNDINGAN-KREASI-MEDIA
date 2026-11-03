@@ -2,7 +2,7 @@
 
 ## Initial delivery (V1)
 - Authenticated editorial workspace at `/cms`, linked from the team workspace when the user has CMS read permission.
-- Role-protected article listing, draft creation, draft updates, and SEO audit endpoints.
+- Role-protected article listing, draft creation, owner-scoped draft loading and updates, and SEO audit endpoints.
 - PostgreSQL schema additions in `db/migrations/20261103_001_custom_cms.sql`.
 - CMS role permissions in `db/migrations/20261103_002_cms_permissions.sql`.
 - Public article route at `/artikel/[slug]`, with canonical metadata, Open Graph, Twitter summary metadata, and Article JSON-LD.
@@ -19,6 +19,7 @@
 ## Environment and migration status
 - Additive migrations `20261103_001_custom_cms` and `20261103_002_cms_permissions` have been applied and verified on the Neon `development` branch of project `lucky-river-80575728`.
 - Owner and Administrator receive full CMS permissions; Unit Manager and Staff can read/create/update drafts and run SEO audits; Viewer is read-only.
+- The development branch currently has no Neon Auth users or role assignments. The first intended operator must register on the development preview; the Owner role can then be assigned to that verified account.
 - The production branch has not been migrated.
 - Vercel preview environment variables for this feature branch are scoped to the Neon development branch and are not added to Production.
 - Production rollout remains blocked on review, preview verification, and a separately planned production migration.
