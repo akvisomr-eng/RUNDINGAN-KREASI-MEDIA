@@ -24,5 +24,6 @@ export async function hasPermission(
         )
     ) AS allowed
   `;
-  return rows[0]?.allowed === true;
+  const firstRow = Array.isArray(rows) ? rows[0] : rows.rows[0];
+  return firstRow?.allowed === true;
 }
