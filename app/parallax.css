@@ -29,7 +29,7 @@
   content: "";
   position: absolute;
   inset: -15%;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   opacity: .22;
   background:
@@ -38,6 +38,9 @@
   translate: 0 var(--parallax-y, 0px);
 }
 .contact::before { opacity: .34; }
+.manifesto > span, .manifesto > p, .manifesto > small,
+.contact > .kicker, .contact > h2, .contact > .contact-copy,
+.contact > .button, .contact > .contact-note { position: relative; z-index: 1; }
 .motion-ready [data-reveal] {
   opacity: 0;
   transform: translate3d(0, 24px, 0);
