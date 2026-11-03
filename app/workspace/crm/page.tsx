@@ -11,6 +11,7 @@ export default async function CrmPage() {
   if (!session?.user) redirect('/auth/sign-in');
 
   const allowed = await hasPermission(session.user.id, 'crm.parties.read');
+  const canCreate = await hasPermission(session.user.id, 'crm.parties.create');
   if (!allowed) {
     return (
       <main className="workspace-shell">
@@ -35,7 +36,7 @@ export default async function CrmPage() {
           <div><p className="auth-eyebrow">WORKSPACE / CRM / 01</p><h1>Relasi bisnis,<br /><em>terhubung.</em></h1></div>
           <Link href="/workspace">← Workspace</Link>
         </div>
-        <PartiesManager />
+        <PartiesManager canCreate={canCreate} />
       </section>
     </main>
   );
