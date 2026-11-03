@@ -5,10 +5,12 @@ import '@neondatabase/auth-ui/css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://rundingan-kreasi-media.vercel.app'),
   title: 'Rundingan Kreasi Media | Ideas into meaningful experiences',
   description: 'Rundingan Kreasi Media — ekosistem media, podcast, edukasi, rental, produksi, creative, dan event.',
   applicationName: 'Rundingan Kreasi Media',
-  openGraph: { title: 'Rundingan Kreasi Media', description: 'Menghubungkan ide, cerita, dan pengalaman melalui media dan kreativitas.', type: 'website' },
+  alternates: { canonical: '/' },
+  openGraph: { title: 'Rundingan Kreasi Media', description: 'Menghubungkan ide, cerita, dan pengalaman melalui media dan kreativitas.', type: 'website', url: '/' },
   robots: { index: true, follow: true },
 };
 
