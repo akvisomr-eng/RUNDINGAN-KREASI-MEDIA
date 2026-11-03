@@ -34,7 +34,9 @@ const emptyForm = {
   seoTitle: '', seoDescription: '', focusKeyword: '',
 };
 
-export default function CmsWorkspace({ userName }: { userName: string }) {
+export default function CmsWorkspace({
+  userName, canCreate, canAudit,
+}: { userName: string; canCreate: boolean; canAudit: boolean }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [report, setReport] = useState<Report | null>(null);
@@ -103,7 +105,7 @@ export default function CmsWorkspace({ userName }: { userName: string }) {
     <main className="cms-shell">
       <header className="cms-topbar">
         <a href="/" className="cms-brand"><span>R</span><strong>RUNDINGAN <small>CONTENT STUDIO</small></strong></a>
-        <div className="cms-user"><span>Workspace editorial</span><strong>{userName}</strong><a href="/">Kembali ke website ↗</a></div>
+        <div className="cms-user"><span>Workspace editorial</span><strong>{userName}</strong><a href="/workspace">Workspace ↗</a></div>
       </header>
       <section className="cms-intro">
         <div><p className="cms-kicker">CONTENT MANAGEMENT SYSTEM / V1</p><h1>Editorial <em>Workspace.</em></h1><p>Kelola draft artikel, siapkan metadata pencarian, dan jalankan pemeriksaan SEO multi-agent sebelum masuk ke tahap review editorial.</p></div>
@@ -111,29 +113,37 @@ export default function CmsWorkspace({ userName }: { userName: string }) {
       </section>
       {message && <div className="cms-message" role="status">{message}</div>}
       <div className="cms-grid">
-        <section className="cms-panel cms-editor">
-          <div className="cms-panel-heading"><div><p className="cms-kicker">01 / EDITOR</p><h2>New article draft</h2></div><span className="cms-draft-pill">DRAFT ONLY</span></div>
-          <label>Judul artikel<input value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Tulis judul yang jelas dan menarik" maxLength={180} /></label>
-          <label>URL slug<input value={form.slug} onChange={e => updateField('slug', e.target.value)} placeholder="judul-artikel" /></label>
-          <label>Ringkasan<textarea rows={2} value={form.excerpt} onChange={e => updateField('excerpt', e.target.value)} placeholder="Ringkasan singkat untuk daftar artikel" /></label>
-          <label>Isi artikel<textarea className="cms-content-input" rows={14} value={form.content} onChange={e => updateField('content', e.target.value)} placeholder="Tulis isi artikel di sini. Gunakan baris baru untuk memisahkan paragraf dan format # Judul Bagian untuk heading." /></label>
-          <div className="cms-editor-footer"><span>{wordCount} kata · {form.content.length} karakter</span><button className="cms-button cms-button-primary" disabled={busy || form.title.trim().length < 3 || form.content.trim().length < 20} onClick={saveDraft}>Simpan sebagai draft</button></div>
-        </section>
+        {canCreate ? (
+          <section className="cms-panel cms-editor">
+            <div className="cms-panel-heading"><div><p className="cms-kicker">01 / EDITOR</p><h2>New article draft</h2></div><span className="cms-draft-pill">DRAFT ONLY</span></div>
+            <label>Judul artikel<input value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Tulis judul yang jelas dan menarik" maxLength={180} /></label>
+            <label>URL slug<input value={form.slug} onChange={e => updateField('slug', e.target.value)} placeholder="judul-artikel" /></label>
+            <label>Ringkasan<textarea rows={2} value={form.excerpt} onChange={e => updateField('excerpt', e.target.value)} placeholder="Ringkasan singkat untuk daftar artikel" /></label>
+            <label>Isi artikel<textarea className="cms-content-input" rows={14} value={form.content} onChange={e => updateField('content', e.target.value)} placeholder="Tulis isi artikel di sini. Gunakan baris baru untuk memisahkan paragraf dan format # Judul Bagian untuk heading." /></label>
+            <div className="cms-editor-footer"><span>{wordCount} kata · {form.content.length} karakter</span><button className="cms-button cms-button-primary" disabled={busy || form.title.trim().length < 3 || form.content.trim().length < 20} onClick={saveDraft}>Simpan sebagai draft</button></div>
+          </section>
+        ) : (
+          <section className="cms-panel cms-editor"><p className="cms-kicker">EDITOR / READ ONLY</p><h2>Mode pembaca</h2><p>Peran Anda dapat melihat artikel, tetapi belum memiliki izin membuat draft.</p></section>
+        )}
         <aside className="cms-side">
           <section className="cms-panel">
             <div className="cms-panel-heading"><div><p className="cms-kicker">02 / SEARCH PREVIEW</p><h2>SEO metadata</h2></div></div>
-            <label>Focus keyword<input value={form.focusKeyword} onChange={e => updateField('focusKeyword', e.target.value)} placeholder="Kata kunci utama" /></label>
-            <label>SEO title<input value={form.seoTitle} onChange={e => updateField('seoTitle', e.target.value)} placeholder="Judul untuk mesin pencari" maxLength={70} /></label>
-            <div className="cms-counter">{(form.seoTitle || form.title).length} karakter · target 30–60</div>
-            <label>Meta description<textarea rows={3} value={form.seoDescription} onChange={e => updateField('seoDescription', e.target.value)} placeholder="Deskripsi ringkas yang menjelaskan manfaat artikel" maxLength={200} /></label>
-            <div className="cms-counter">{form.seoDescription.length} karakter · target 120–160</div>
-            <div className="cms-search-preview"><small>PREVIEW GOOGLE (SIMULASI)</small><strong>{form.seoTitle || form.title || 'Judul artikel akan tampil di sini'}</strong><span>rundingan-kreasi-media.vercel.app/artikel/{form.slug || 'url-artikel'}</span><p>{form.seoDescription || form.excerpt || 'Meta description akan tampil sebagai ringkasan hasil pencarian.'}</p></div>
-            <button className="cms-button cms-button-outline" disabled={busy || !form.title.trim() || !form.content.trim()} onClick={audit}>{busy ? 'Memproses…' : 'Jalankan 6 SEO Agents'}</button>
+            {canCreate ? (
+              <>
+                <label>Focus keyword<input value={form.focusKeyword} onChange={e => updateField('focusKeyword', e.target.value)} placeholder="Kata kunci utama" /></label>
+                <label>SEO title<input value={form.seoTitle} onChange={e => updateField('seoTitle', e.target.value)} placeholder="Judul untuk mesin pencari" maxLength={70} /></label>
+                <div className="cms-counter">{(form.seoTitle || form.title).length} karakter · target 30–60</div>
+                <label>Meta description<textarea rows={3} value={form.seoDescription} onChange={e => updateField('seoDescription', e.target.value)} placeholder="Deskripsi ringkas yang menjelaskan manfaat artikel" maxLength={200} /></label>
+                <div className="cms-counter">{form.seoDescription.length} karakter · target 120–160</div>
+                <div className="cms-search-preview"><small>PREVIEW GOOGLE (SIMULASI)</small><strong>{form.seoTitle || form.title || 'Judul artikel akan tampil di sini'}</strong><span>rundingan-kreasi-media.vercel.app/artikel/{form.slug || 'url-artikel'}</span><p>{form.seoDescription || form.excerpt || 'Meta description akan tampil sebagai ringkasan hasil pencarian.'}</p></div>
+              </>
+            ) : <p className="cms-empty">Metadata tersedia dalam mode baca setelah artikel dipilih.</p>}
+            {canAudit && <button className="cms-button cms-button-outline" disabled={busy || !form.title.trim() || !form.content.trim()} onClick={audit}>{busy ? 'Memproses…' : 'Jalankan 6 SEO Agents'}</button>}
           </section>
           <section className="cms-panel cms-agents-panel">
             <div className="cms-panel-heading"><div><p className="cms-kicker">03 / MULTI-AGENT</p><h2>SEO intelligence</h2></div><span className="cms-agent-count">06</span></div>
             <div className="cms-agent-list">
-              {['Title & Keyword Agent','Meta Description Agent','Content Structure Agent','Keyword Placement Agent','Readability Agent','Technical On-page Agent'].map((agent, index) => <div className="cms-agent-item" key={agent}><span>0{index + 1}</span><strong>{agent}</strong><i>READY</i></div>)}
+              {['Title & Keyword Agent','Meta Description Agent','Content Structure Agent','Keyword Placement Agent','Readability Agent','Technical On-page Agent'].map((agent, index) => <div className="cms-agent-item" key={agent}><span>0{index + 1}</span><strong>{agent}</strong><i>{canAudit ? 'READY' : 'READ ONLY'}</i></div>)}
             </div>
             {report && <div className="cms-report"><div className="cms-score"><strong>{report.score}</strong><span>/ 100 SEO SCORE</span></div>{report.agents.map(item => <div className="cms-finding" key={item.agent}><div><strong>{item.agent}</strong><b>{item.score}/100</b></div><p>{item.summary}</p>{item.recommendations.map(rec => <small key={rec}>• {rec}</small>)}</div>)}<p className="cms-disclaimer">{report.disclaimer}</p></div>}
           </section>
