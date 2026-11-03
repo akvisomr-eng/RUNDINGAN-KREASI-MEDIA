@@ -10,7 +10,7 @@ export async function hasPermission(
     SELECT EXISTS (
       SELECT 1
       FROM user_role_assignments ura
-      JOIN roles r ON r.id = ura.role_id AND r.status = 'active'
+      JOIN roles r ON r.id = ura.role_id AND r.organization_id = ura.organization_id AND r.status = 'active'
       JOIN role_permissions rp ON rp.role_id = r.id
       JOIN permissions p ON p.id = rp.permission_id
       JOIN organizations o ON o.id = ura.organization_id
