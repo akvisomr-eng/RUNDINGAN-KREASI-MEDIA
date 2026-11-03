@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './parallax.css';
 import '@neondatabase/auth-ui/css';
 import { Providers } from './providers';
 
