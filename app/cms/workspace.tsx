@@ -35,10 +35,11 @@ const emptyForm = {
 };
 
 export default function CmsWorkspace({
-  userName, canCreate, canAudit,
-}: { userName: string; canCreate: boolean; canAudit: boolean }) {
+  userName, canCreate, canUpdate, canAudit,
+}: { userName: string; canCreate: boolean; canUpdate: boolean; canAudit: boolean }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -70,6 +71,37 @@ export default function CmsWorkspace({
     setReport(null);
   }
 
+  function resetEditor() {
+    setSelectedPostId(null);
+    setForm(emptyForm);
+    setReport(null);
+  }
+
+  async function editDraft(id: string) {
+    setBusy(true); setMessage('');
+    try {
+      const response = await fetch(`/api/cms/posts/${id}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Draft tidak dapat dibuka.');
+      const post = data.post;
+      setSelectedPostId(post.id);
+      setForm({
+        title: post.title || '',
+        slug: post.slug || '',
+        excerpt: post.excerpt || '',
+        content: post.content || '',
+        seoTitle: post.seo_title || '',
+        seoDescription: post.seo_description || '',
+        focusKeyword: post.focus_keyword || '',
+      });
+      setReport(null);
+      setMessage(`Sedang mengedit draft “${post.title}”.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Draft gagal dibuka.');
+    } finally { setBusy(false); }
+  }
+
   async function audit() {
     setBusy(true); setMessage('');
     try {
@@ -88,14 +120,17 @@ export default function CmsWorkspace({
   async function saveDraft() {
     setBusy(true); setMessage('');
     try {
-      const response = await fetch('/api/cms/posts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const editing = Boolean(selectedPostId);
+      const response = await fetch(editing ? `/api/cms/posts/${selectedPostId}` : '/api/cms/posts', {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Draft gagal disimpan.');
-      setMessage(`Draft “${data.post.title}” berhasil disimpan.`);
-      setForm(emptyForm); setReport(null); await loadPosts();
+      setMessage(editing ? `Draft “${data.post.title}” berhasil diperbarui.` : `Draft “${data.post.title}” berhasil disimpan.`);
+      resetEditor();
+      await loadPosts();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Draft gagal disimpan.');
     } finally { setBusy(false); }
@@ -115,12 +150,12 @@ export default function CmsWorkspace({
       <div className="cms-grid">
         {canCreate ? (
           <section className="cms-panel cms-editor">
-            <div className="cms-panel-heading"><div><p className="cms-kicker">01 / EDITOR</p><h2>New article draft</h2></div><span className="cms-draft-pill">DRAFT ONLY</span></div>
+            <div className="cms-panel-heading"><div><p className="cms-kicker">01 / EDITOR</p><h2>{selectedPostId ? 'Edit article draft' : 'New article draft'}</h2></div><div className="cms-editor-actions"><span className="cms-draft-pill">DRAFT ONLY</span>{selectedPostId && <button className="cms-text-button" onClick={resetEditor}>Batal edit</button>}</div></div>
             <label>Judul artikel<input value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Tulis judul yang jelas dan menarik" maxLength={180} /></label>
             <label>URL slug<input value={form.slug} onChange={e => updateField('slug', e.target.value)} placeholder="judul-artikel" /></label>
             <label>Ringkasan<textarea rows={2} value={form.excerpt} onChange={e => updateField('excerpt', e.target.value)} placeholder="Ringkasan singkat untuk daftar artikel" /></label>
             <label>Isi artikel<textarea className="cms-content-input" rows={14} value={form.content} onChange={e => updateField('content', e.target.value)} placeholder="Tulis isi artikel di sini. Gunakan baris baru untuk memisahkan paragraf dan format # Judul Bagian untuk heading." /></label>
-            <div className="cms-editor-footer"><span>{wordCount} kata · {form.content.length} karakter</span><button className="cms-button cms-button-primary" disabled={busy || form.title.trim().length < 3 || form.content.trim().length < 20} onClick={saveDraft}>Simpan sebagai draft</button></div>
+            <div className="cms-editor-footer"><span>{wordCount} kata · {form.content.length} karakter</span><button className="cms-button cms-button-primary" disabled={busy || form.title.trim().length < 3 || form.content.trim().length < 20} onClick={saveDraft}>{selectedPostId ? 'Simpan perubahan' : 'Simpan sebagai draft'}</button></div>
           </section>
         ) : (
           <section className="cms-panel cms-editor"><p className="cms-kicker">EDITOR / READ ONLY</p><h2>Mode pembaca</h2><p>Peran Anda dapat melihat artikel, tetapi belum memiliki izin membuat draft.</p></section>
@@ -151,7 +186,7 @@ export default function CmsWorkspace({
       </div>
       <section className="cms-panel cms-posts">
         <div className="cms-panel-heading"><div><p className="cms-kicker">04 / CONTENT LIBRARY</p><h2>Recent articles</h2></div><button className="cms-button cms-button-outline" onClick={loadPosts}>Refresh ↻</button></div>
-        {loading ? <p className="cms-empty">Memuat artikel…</p> : posts.length === 0 ? <p className="cms-empty">Belum ada artikel. Draft pertama Anda akan muncul di sini setelah migrasi database diterapkan.</p> : <div className="cms-post-list">{posts.map(post => <article className="cms-post-row" key={post.id}><div><strong>{post.title}</strong><span>/artikel/{post.slug}</span></div><span className="cms-status">{post.status}</span><time>{new Date(post.updated_at).toLocaleDateString('id-ID')}</time></article>)}</div>}
+        {loading ? <p className="cms-empty">Memuat artikel…</p> : posts.length === 0 ? <p className="cms-empty">Belum ada artikel. Draft pertama Anda akan muncul di sini setelah migrasi database diterapkan.</p> : <div className="cms-post-list">{posts.map(post => <article className="cms-post-row" key={post.id}><div><strong>{post.title}</strong><span>/artikel/{post.slug}</span></div><span className="cms-status">{post.status}</span><time>{new Date(post.updated_at).toLocaleDateString('id-ID')}</time>{canUpdate && post.status === 'draft' && <button className="cms-text-button" disabled={busy} onClick={() => editDraft(post.id)}>Edit draft</button>}</article>)}</div>}
       </section>
       <footer className="cms-footer">RUNDINGAN KREASI MEDIA · EDITORIAL CONTROL DESK · V1</footer>
     </main>
