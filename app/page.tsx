@@ -118,7 +118,7 @@ export default function Home() {
       <section className="metro-section metro-ecosystem" id="ekosistem">
         <div className="metro-section-heading"><div><p className="metro-section-kicker">02 / ONE CREATIVE ECOSYSTEM</p><h2>Six units.<br /><em>One direction.</em></h2></div><p>Dari gagasan pertama hingga karya siap dinikmati, enam unit kami bergerak sebagai satu ekosistem.</p></div>
         <div className="metro-unit-board">
-          {units.map((unit) => <a className={`metro-unit-tile ${unit.color}`} href={unit.href} key={unit.no}><span className="metro-unit-number">{unit.no} / 06</span><span className="metro-unit-icon">{unit.icon}</span><span className="metro-unit-copy"><small>{unit.label}</small><strong>{unit.name}</strong><em>Explore ↗</em></span></a>)}
+          {units.map((unit) => <a className={`metro-unit-tile ${unit.color}`} href={unit.href} target={unit.href.startsWith("https://") ? "_blank" : undefined} rel={unit.href.startsWith("https://") ? "noreferrer" : undefined} key={unit.no}><span className="metro-unit-number">{unit.no} / 06</span><span className="metro-unit-icon">{unit.icon}</span><span className="metro-unit-copy"><small>{unit.label}</small><strong>{unit.name}</strong><em>Explore ↗</em></span></a>)}
         </div>
       </section>
 
