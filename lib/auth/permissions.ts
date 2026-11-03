@@ -1,3 +1,4 @@
+import 'server-only';
 import { getSql } from '@/lib/db';
 
 export async function hasPermission(
