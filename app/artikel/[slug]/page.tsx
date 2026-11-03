@@ -16,13 +16,13 @@ type Article = {
 
 async function getArticle(slug: string): Promise<Article | null> {
   const sql = getSql();
-  const rows = await sql`
+  const rows = (await sql`
     SELECT title, slug, excerpt, content, seo_title, seo_description, published_at
     FROM cms_posts
     WHERE slug = ${slug} AND status = 'published'
     LIMIT 1
-  `;
-  return (rows[0] as Article | undefined) ?? null;
+  `) as unknown as Article[];
+  return rows[0] ?? null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
