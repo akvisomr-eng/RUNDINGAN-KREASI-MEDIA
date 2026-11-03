@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './metro-fit.css';
 import '@neondatabase/auth-ui/css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Rundingan Kreasi Media | Ideas into meaningful experiences',
-  description: 'Ekosistem media, edukasi, rental, produksi, creative, dan event dalam satu kolaborasi.',
+  description: 'Rundingan Kreasi Media — ekosistem media, podcast, edukasi, rental, produksi, creative, dan event.',
   applicationName: 'Rundingan Kreasi Media',
   openGraph: { title: 'Rundingan Kreasi Media', description: 'Menghubungkan ide, cerita, dan pengalaman melalui media dan kreativitas.', type: 'website' },
   robots: { index: true, follow: true },
