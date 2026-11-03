@@ -1,26 +1,121 @@
 const units = [
-  { no: '01', name: 'Rundingan Media', tag: 'Cerita & publikasi', text: 'Kanal digital, video, podcast, artikel, dan konten edukatif yang mempertemukan gagasan dengan audiens.' },
-  { no: '02', name: 'Rundingan Academy', tag: 'Belajar & bertumbuh', text: 'Pelatihan multimedia, public speaking, videografi, editing, content creation, dan digital marketing.' },
-  { no: '03', name: 'Rundingan Rental', tag: 'Peralatan produksi', text: 'Dukungan kamera, lensa, lighting, audio, tripod, stabilizer, dan perlengkapan produksi.' },
-  { no: '04', name: 'Rundingan Production', tag: 'Produksi profesional', text: 'Video perusahaan, iklan, dokumentasi, livestreaming, dan produksi podcast dari konsep hingga hasil.' },
-  { no: '05', name: 'Rundingan Creative', tag: 'Identitas & desain', text: 'Branding, desain visual, strategi konten, dan solusi kreatif untuk membangun komunikasi yang kuat.' },
-  { no: '06', name: 'Rundingan Event', tag: 'Momen & pengalaman', text: 'Dukungan produksi acara, dokumentasi, dan pengalaman event yang dirancang dengan cermat.' },
+  { no: "01", name: "Rundingan Media", label: "MEDIA & PUBLISHING", color: "tile-blue", icon: "▶", href: "https://www.youtube.com/@rundingan" },
+  { no: "02", name: "Rundingan Academy", label: "LEARN & GROW", color: "tile-teal", icon: "✳", href: "#kontak" },
+  { no: "03", name: "Rundingan Rental", label: "PRODUCTION GEAR", color: "tile-violet", icon: "▣", href: "#kontak" },
+  { no: "04", name: "Rundingan Production", label: "VIDEO & PODCAST", color: "tile-orange", icon: "◉", href: "#podcast" },
+  { no: "05", name: "Rundingan Creative", label: "BRAND & DESIGN", color: "tile-rose", icon: "✎", href: "#kontak" },
+  { no: "06", name: "Rundingan Event", label: "LIVE EXPERIENCE", color: "tile-navy", icon: "✦", href: "#kontak" },
 ];
-const values = [
-  ['Satu ekosistem', 'Berbagai keahlian bekerja dalam koordinasi dan standar layanan yang saling terhubung.'],
-  ['Dari ide hingga tayang', 'Strategi, pembelajaran, peralatan, produksi, distribusi, dan evaluasi dalam satu alur.'],
-  ['Kolaborasi adaptif', 'Mendukung individu, komunitas, UMKM, institusi, dan kebutuhan korporasi.'],
+
+const videos = [
+  {
+    id: "IlsxmhJ5g1A",
+    title: "Khilma Anis — Hati Suhita",
+    subtitle: "Perempuan Mengalah, Yang Bekerja Bukan Mulut atau Jarinya, Tapi Doanya",
+    tag: "PODCAST / ZONA NYAMAN",
+  },
+  {
+    id: "nAUd9vJXcys",
+    title: "Perempuan Bukan Objek Seksual",
+    subtitle: "Percakapan bersama Dr. Nur Rofiah",
+    tag: "PODCAST / RUNDINGAN",
+  },
 ];
 
 export default function Home() {
-  return <main id="home">
-    <header className="topbar"><a className="brand" href="#home"><span className="brand-mark">R</span><span>RUNDINGAN<span className="brand-sub">KREASI MEDIA</span></span></a><nav><a href="#ekosistem">Ekosistem</a><a href="#tentang">Tentang</a><a href="/auth/sign-in">Portal Tim</a><a className="nav-cta" href="#kontak">Mari berkolaborasi ↗</a></nav></header>
-    <section className="hero"><div className="hero-copy"><p className="eyebrow"><i/> CREATIVE MEDIA & BUSINESS ECOSYSTEM</p><h1>Ide yang baik<br/><em>layak menjadi</em><br/>pengalaman nyata.</h1><p className="hero-desc">Kami menghubungkan cerita, kreativitas, teknologi, dan manusia melalui ekosistem media, edukasi, produksi, serta pengalaman.</p><div className="hero-actions"><a className="button primary" href="#ekosistem">Jelajahi ekosistem <span>↘</span></a><a className="text-link" href="#tentang">Kenali kami →</a></div><div className="hero-foot"><span>INDONESIA · CREATIVE COLLABORATION</span><span>EST. WITH PURPOSE</span></div></div><div className="hero-art" aria-hidden="true"><div className="orbit orbit-a"/><div className="orbit orbit-b"/><div className="orbit orbit-c"/><div className="core"><b>R</b><small>IDEA / MEDIA / IMPACT</small></div><span className="art-note note-a">STORYTELLING<br/>MEETS TECHNOLOGY</span><span className="art-note note-b">MAKE IT<br/>MEAN SOMETHING.</span><span className="art-count">01 — 06</span></div></section>
-    <section className="intro" id="tentang"><p className="kicker">01 / WHO WE ARE</p><div className="intro-grid"><h2>Ruang tumbuh bagi<br/><em>ide dan kemungkinan.</em></h2><div><p className="lead">Rundingan Kreasi Media adalah ekosistem layanan kreatif yang menyatukan media, pendidikan, peralatan, produksi, dan event dalam satu arah kolaborasi.</p><p className="muted">Kami percaya karya yang berdampak lahir dari proses yang terencana, tim yang saling melengkapi, dan keberanian untuk terus bereksperimen.</p></div></div></section>
-    <section className="ecosystem" id="ekosistem"><div className="section-head"><div><p className="kicker">02 / OUR ECOSYSTEM</p><h2>Enam unit.<br/><em>Satu gerak.</em></h2></div><p>Setiap unit memiliki fokus dan keahlian tersendiri, namun bergerak bersama untuk menghadirkan solusi yang utuh.</p></div><div className="unit-grid">{units.map(unit => <article className="unit-card" key={unit.no}><div className="unit-top"><span>{unit.no} / 06</span><span>↗</span></div><div><p className="unit-tag">{unit.tag}</p><h3>{unit.name}</h3><p className="unit-desc">{unit.text}</p></div><div className="unit-line"/></article>)}</div></section>
-    <section className="manifesto"><span className="quote-mark">“</span><p>Lebih dari sekadar membuat konten.<br/><em>Kami membangun koneksi yang berarti.</em></p><small>OUR POINT OF VIEW / 2026</small></section>
-    <section className="approach"><p className="kicker">03 / HOW WE WORK</p><div className="approach-grid"><h2>Kolaborasi<br/>yang <em>terarah.</em></h2><div className="values">{values.map(([title, desc], i) => <article className="value" key={title}><span>0{i + 1}</span><div><h3>{title}</h3><p>{desc}</p></div></article>)}</div></div></section>
-    <section className="contact" id="kontak"><div className="contact-orbit"/><p className="kicker">04 / START A CONVERSATION</p><h2>Punya ide untuk<br/><em>kita wujudkan?</em></h2><p className="contact-copy">Mari mulai dari percakapan. Ceritakan kebutuhan, tantangan, atau gagasan yang ingin Anda kembangkan bersama Rundingan Kreasi Media.</p><a className="button dark" href="mailto:contact@rundingankreasi.media?subject=Kolaborasi%20Rundingan%20Kreasi%20Media">Hubungi tim kami ↗</a><small className="contact-note">Alamat email ini adalah kanal awal dan perlu disesuaikan dengan alamat resmi perusahaan.</small></section>
-    <footer><a className="brand" href="#home"><span className="brand-mark">R</span><span>RUNDINGAN<span className="brand-sub">KREASI MEDIA</span></span></a><p>Ideas into meaningful experiences.</p><span>© 2026 RUNDINGAN KREASI MEDIA</span></footer>
-  </main>;
+  return (
+    <main id="home" className="metro-site">
+      <header className="metro-header">
+        <a className="metro-brand" href="#home" aria-label="Rundingan Kreasi Media home">
+          <span className="metro-brand-mark">R</span>
+          <span><strong>RUNDINGAN</strong><small>KREASI MEDIA</small></span>
+        </a>
+        <nav className="metro-nav" aria-label="Navigasi utama">
+          <a href="#podcast">Podcast</a>
+          <a href="#ekosistem">Ekosistem</a>
+          <a href="#tentang">Tentang</a>
+          <a href="/auth/sign-in">Portal Tim</a>
+          <a className="metro-nav-cta" href="#kontak">Hubungi Kami <span>↗</span></a>
+        </nav>
+        <details className="metro-mobile-nav">
+          <summary aria-label="Buka menu navigasi">☰</summary>
+          <div><a href="#podcast">Podcast</a><a href="#ekosistem">Ekosistem</a><a href="#tentang">Tentang</a><a href="/auth/sign-in">Portal Tim</a><a href="#kontak">Hubungi Kami</a></div>
+        </details>
+      </header>
+
+      <section className="metro-hero" aria-labelledby="hero-title">
+        <div className="metro-intro">
+          <p className="metro-eyebrow"><span /> CREATIVE MEDIA · PRODUCTION · EXPERIENCE</p>
+          <h1 id="hero-title">Ideas move<br /><em>people forward.</em></h1>
+          <p>Ruang kolaborasi untuk cerita, kreativitas, teknologi, dan pengalaman yang memberi dampak.</p>
+          <div className="metro-intro-actions"><a href="#ekosistem" className="metro-button">Jelajahi ekosistem <span>↘</span></a><a href="#podcast" className="metro-text-link">Tonton produksi kami</a></div>
+          <div className="metro-intro-foot"><span>INDONESIA · EST. 2026</span><span>IDEA → PRODUCTION → IMPACT</span></div>
+        </div>
+
+        <div className="metro-hero-board" aria-label="Pilihan konten dan unit bisnis Rundingan">
+          <a className="metro-tile tile-featured" href="https://www.youtube.com/watch?v=IlsxmhJ5g1A" target="_blank" rel="noreferrer">
+            <div className="tile-media">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/IlsxmhJ5g1A?rel=0&modestbranding=1"
+                title="Rundingan Podcast — Khilma Anis, Hati Suhita"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+            <span className="tile-play" aria-hidden="true">▶</span>
+            <span className="tile-caption"><small>FEATURED PODCAST / ZONA NYAMAN</small><strong>Khilma Anis — Hati Suhita</strong><em>Putar di YouTube ↗</em></span>
+          </a>
+          <a className="metro-tile tile-video tile-video-two" href="https://www.youtube.com/watch?v=nAUd9vJXcys" target="_blank" rel="noreferrer" style={{ backgroundImage: "linear-gradient(180deg, transparent 20%, rgba(3,18,38,.88)), url(https://img.youtube.com/vi/nAUd9vJXcys/hqdefault.jpg)" }}>
+            <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>PODCAST / RUNDINGAN</small><strong>Perempuan Bukan Objek Seksual</strong></span>
+          </a>
+          <a className="metro-tile tile-blue tile-channel" href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">
+            <span className="tile-icon">▶</span><span className="tile-caption"><small>WATCH · LISTEN · SUBSCRIBE</small><strong>Rundingan Channel</strong><em>Jelajahi semua video ↗</em></span>
+          </a>
+          <a className="metro-tile tile-social tile-instagram" href="https://www.instagram.com/rundingan.id/" target="_blank" rel="noreferrer">
+            <span className="tile-icon">◎</span><span className="tile-caption"><small>FOLLOW OUR JOURNEY</small><strong>Instagram</strong><em>@rundingan.id ↗</em></span>
+          </a>
+          <a className="metro-tile tile-social tile-tiktok" href="https://www.tiktok.com/@rundingan.id" target="_blank" rel="noreferrer">
+            <span className="tile-icon">♪</span><span className="tile-caption"><small>SHORT FORM STORIES</small><strong>TikTok</strong><em>@rundingan.id ↗</em></span>
+          </a>
+        </div>
+        <div className="metro-scroll-cue">SCROLL TO EXPLORE <span>↓</span></div>
+      </section>
+
+      <section className="metro-section metro-podcast" id="podcast">
+        <div className="metro-section-heading"><div><p className="metro-section-kicker">01 / ON THE CHANNEL</p><h2>Stories worth<br /><em>spending time with.</em></h2></div><a href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">Lihat channel YouTube ↗</a></div>
+        <div className="metro-video-grid">
+          {videos.map((video, index) => (
+            <a className="metro-video-card" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer" key={video.id}>
+              <div className="metro-video-thumb" style={{ backgroundImage: `linear-gradient(180deg, transparent 25%, rgba(4,17,35,.86)), url(https://img.youtube.com/vi/${video.id}/hqdefault.jpg)` }}>
+                <span className="metro-video-play">▶</span><span className="metro-video-index">0{index + 1}</span>
+              </div>
+              <div className="metro-video-meta"><small>{video.tag}</small><h3>{video.title}</h3><p>{video.subtitle}</p><span>Tonton episode ↗</span></div>
+            </a>
+          ))}
+        </div>
+        <p className="metro-source-note">Video ditautkan langsung ke kanal YouTube Rundingan. Pemutaran dapat dilakukan di halaman ini atau melalui YouTube.</p>
+      </section>
+
+      <section className="metro-section metro-ecosystem" id="ekosistem">
+        <div className="metro-section-heading"><div><p className="metro-section-kicker">02 / ONE CREATIVE ECOSYSTEM</p><h2>Six units.<br /><em>One direction.</em></h2></div><p>Dari gagasan pertama hingga karya siap dinikmati, enam unit kami bergerak sebagai satu ekosistem.</p></div>
+        <div className="metro-unit-board">
+          {units.map((unit) => <a className={`metro-unit-tile ${unit.color}`} href={unit.href} key={unit.no}><span className="metro-unit-number">{unit.no} / 06</span><span className="metro-unit-icon">{unit.icon}</span><span className="metro-unit-copy"><small>{unit.label}</small><strong>{unit.name}</strong><em>Explore ↗</em></span></a>)}
+        </div>
+      </section>
+
+      <section className="metro-about" id="tentang">
+        <div className="metro-about-mark">R.</div>
+        <div><p className="metro-section-kicker">03 / ABOUT RUNDINGAN</p><h2>We make ideas<br /><em>mean something.</em></h2><p>Rundingan Kreasi Media adalah ekosistem layanan media dan kreatif yang menghubungkan publikasi, edukasi, peralatan, produksi, desain, dan event. Kami percaya karya yang kuat lahir dari kolaborasi yang terarah dan proses yang bertanggung jawab.</p><a href="#kontak" className="metro-button metro-button-light">Mulai kolaborasi ↗</a></div>
+      </section>
+
+      <section className="metro-contact" id="kontak">
+        <div><p className="metro-section-kicker">04 / LET'S CREATE TOGETHER</p><h2>Have a story<br /><em>to tell?</em></h2><p>Ceritakan kebutuhan produksi, ide konten, kerja sama, atau acara yang ingin Anda wujudkan bersama kami.</p></div>
+        <div className="metro-contact-links"><a href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">YouTube <span>↗</span></a><a href="https://www.instagram.com/rundingan.id/" target="_blank" rel="noreferrer">Instagram <span>↗</span></a><a href="https://www.tiktok.com/@rundingan.id" target="_blank" rel="noreferrer">TikTok <span>↗</span></a><a href="mailto:contact@rundingankreasi.media?subject=Kolaborasi%20Rundingan%20Kreasi%20Media">Email <span>↗</span></a></div>
+      </section>
+
+      <footer className="metro-footer"><a className="metro-brand" href="#home"><span className="metro-brand-mark">R</span><span><strong>RUNDINGAN</strong><small>KREASI MEDIA</small></span></a><p>Ideas into meaningful experiences.</p><small>© 2026 RUNDINGAN KREASI MEDIA</small></footer>
+    </main>
+  );
 }
