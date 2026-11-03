@@ -12,13 +12,25 @@ const videos = [
     id: "IlsxmhJ5g1A",
     title: "Khilma Anis — Hati Suhita",
     subtitle: "Perempuan Mengalah, Yang Bekerja Bukan Mulut atau Jarinya, Tapi Doanya",
-    tag: "PODCAST / ZONA NYAMAN",
+    tag: "ZONA NYAMAN",
   },
   {
     id: "nAUd9vJXcys",
     title: "Perempuan Bukan Objek Seksual",
-    subtitle: "Percakapan bersama Dr. Nur Rofiah",
-    tag: "PODCAST / RUNDINGAN",
+    subtitle: "Percakapan bersama Dr. Nur Rofiah tentang keadilan hakiki perempuan",
+    tag: "ZONA NYAMAN",
+  },
+  {
+    id: "u7ZYwDkTGGw",
+    title: "Tubuh Perempuan Milik Siapa?",
+    subtitle: "Teman Tidur · Episode 001 bersama Uswah Syauqie",
+    tag: "TEMAN TIDUR / E01",
+  },
+  {
+    id: "HnLgLBMea3w",
+    title: "Sering Lelah Abis Berinteraksi?",
+    subtitle: "Cara mengatasi introvert burnout · Teman Tidur Episode 003",
+    tag: "TEMAN TIDUR / E03",
   },
 ];
 
@@ -67,7 +79,13 @@ export default function Home() {
             <span className="tile-caption"><small>FEATURED PODCAST / ZONA NYAMAN</small><strong>Khilma Anis — Hati Suhita</strong><a href="https://www.youtube.com/watch?v=IlsxmhJ5g1A" target="_blank" rel="noreferrer">Buka di YouTube ↗</a></span>
           </div>
           <a className="metro-tile tile-video tile-video-two" href="https://www.youtube.com/watch?v=nAUd9vJXcys" target="_blank" rel="noreferrer" style={{ backgroundImage: "linear-gradient(180deg, transparent 20%, rgba(3,18,38,.88)), url(https://img.youtube.com/vi/nAUd9vJXcys/hqdefault.jpg)" }}>
-            <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>PODCAST / RUNDINGAN</small><strong>Perempuan Bukan Objek Seksual</strong></span>
+            <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>ZONA NYAMAN</small><strong>Perempuan Bukan Objek Seksual</strong></span>
+          </a>
+          <a className="metro-tile tile-video tile-video-three" href="https://www.youtube.com/watch?v=u7ZYwDkTGGw" target="_blank" rel="noreferrer" style={{ backgroundImage: "linear-gradient(180deg, transparent 15%, rgba(3,18,38,.9)), url(https://img.youtube.com/vi/u7ZYwDkTGGw/hqdefault.jpg)" }}>
+            <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>TEMAN TIDUR / E01</small><strong>Tubuh Perempuan Milik Siapa?</strong></span>
+          </a>
+          <a className="metro-tile tile-video tile-video-four" href="https://www.youtube.com/watch?v=HnLgLBMea3w" target="_blank" rel="noreferrer" style={{ backgroundImage: "linear-gradient(180deg, transparent 15%, rgba(3,18,38,.9)), url(https://img.youtube.com/vi/HnLgLBMea3w/hqdefault.jpg)" }}>
+            <span className="tile-play" aria-hidden="true">▶</span><span className="tile-caption"><small>TEMAN TIDUR / E03</small><strong>Sering Lelah Abis Berinteraksi?</strong></span>
           </a>
           <a className="metro-tile tile-blue tile-channel" href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">
             <span className="tile-icon">▶</span><span className="tile-caption"><small>WATCH · LISTEN · SUBSCRIBE</small><strong>Rundingan Channel</strong><em>Jelajahi semua video ↗</em></span>
@@ -83,7 +101,7 @@ export default function Home() {
       </section>
 
       <section className="metro-section metro-podcast" id="podcast">
-        <div className="metro-section-heading"><div><p className="metro-section-kicker">01 / ON THE CHANNEL</p><h2>Stories worth<br /><em>spending time with.</em></h2></div><a href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">Lihat channel YouTube ↗</a></div>
+        <div className="metro-section-heading"><div><p className="metro-section-kicker">01 / ON THE CHANNEL</p><h2>Stories worth<br /><em>your time.</em></h2></div><a href="https://www.youtube.com/@rundingan" target="_blank" rel="noreferrer">Lihat channel YouTube ↗</a></div>
         <div className="metro-video-grid">
           {videos.map((video, index) => (
             <a className="metro-video-card" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer" key={video.id}>
@@ -94,7 +112,7 @@ export default function Home() {
             </a>
           ))}
         </div>
-        <p className="metro-source-note">Video ditautkan langsung ke kanal YouTube Rundingan. Pemutaran dapat dilakukan di halaman ini atau melalui YouTube.</p>
+        <p className="metro-source-note">Pilihan episode dari kanal YouTube Rundingan. Pilih kartu untuk menonton episode lengkap di YouTube.</p>
       </section>
 
       <section className="metro-section metro-ecosystem" id="ekosistem">
