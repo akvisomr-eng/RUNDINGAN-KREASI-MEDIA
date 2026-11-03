@@ -5,6 +5,31 @@ import { getSql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { data } = await auth.getSession();
+  const user = data?.user;
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await hasPermission(user.id, 'cms.posts.update'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT id, title, slug, excerpt, content, status, seo_title, seo_description,
+             focus_keyword, updated_at
+      FROM cms_posts
+      WHERE id = ${id}::uuid AND created_by = ${String(user.id)} AND status = 'draft'
+      LIMIT 1
+    `) as unknown as Array<Record<string, unknown>>;
+    if (!rows.length) return NextResponse.json({ error: 'Draft not found or you do not own permission to edit it.' }, { status: 404 });
+    return NextResponse.json({ post: rows[0] });
+  } catch {
+    return NextResponse.json({ error: 'Could not load the draft.' }, { status: 400 });
+  }
+}
+
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { data } = await auth.getSession();
   const user = data?.user;
