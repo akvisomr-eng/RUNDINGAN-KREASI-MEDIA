@@ -34,14 +34,14 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
   try {
     const sql = getSql();
-    const rows = await sql`
+    const rows = (await sql`
       UPDATE cms_posts
       SET title = ${title}, slug = ${slug}, excerpt = ${excerpt}, content = ${content},
           seo_title = ${seoTitle}, seo_description = ${seoDescription},
           focus_keyword = ${focusKeyword}, updated_by = ${String(user.id)}, updated_at = NOW()
       WHERE id = ${id}::uuid AND created_by = ${String(user.id)} AND status = 'draft'
       RETURNING id, title, slug, status, updated_at
-    `;
+    `) as unknown as Array<Record<string, unknown>>;
     if (!rows.length) return NextResponse.json({ error: 'Draft not found or you do not own permission to edit it.' }, { status: 404 });
     return NextResponse.json({ post: rows[0] });
   } catch {
