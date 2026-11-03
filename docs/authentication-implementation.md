@@ -3,7 +3,7 @@
 ## Provisioning state
 - Neon Managed Auth (Better Auth) is provisioned only on the Neon `development` branch.
 - The Auth endpoint, database connection, and cookie secret are stored as encrypted Vercel Preview variables scoped to `feat/master-data-and-auth`.
-- `DATABASE_URL` uses a dedicated `rundingan_app` PostgreSQL login with limited grants, not the database owner role.
+- `DATABASE_URL` uses the dedicated `rundingan_app_limited` PostgreSQL login. It has no `neon_superuser` membership, cannot create roles/databases, and has only the required application table grants.
 - Production Neon and Vercel environments have not been modified.
 - The exact branch Preview origin is registered as a trusted Neon Auth domain.
 
