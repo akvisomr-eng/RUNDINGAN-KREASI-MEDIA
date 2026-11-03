@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@neondatabase/auth": "0.7.0-beta",
+    "@neondatabase/auth": "0.6.0-beta",
     "@neondatabase/auth-ui": "0.4.0-beta",
     "next": "16.4.4",
     "react": "19.3.0",
