@@ -91,14 +91,14 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     const metadataKeys=['instructor','delivery_mode','capacity','learning_hours','client_name','deliverable_type','revision_rounds','event_type','venue','expected_attendees','content_format','channel','editorial_stage','rights_status','production_type','shoot_location','crew_lead','delivery_format'];const metadata=Object.fromEntries(metadataKeys.filter(key=>typeof b[key]==='string'&&(b[key] as string).trim()).map(key=>[key,s(b,key,500)]));
     if(title.length<3||!category||!validDate(start)||!validDate(due)||(start&&due&&due<start)||!Number.isFinite(budget)||budget<0||Math.abs(budget*100-Math.round(budget*100))>0.000001||JSON.stringify(metadata).length>8000)return err('Data pekerjaan tidak valid. Periksa judul, tanggal, anggaran dan metadata.');
     const reference='MOD-'+workModuleCode+'-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+crypto.randomUUID().slice(0,8).toUpperCase();
+    const workItemId=crypto.randomUUID(),transactionId=crypto.randomUUID();
     const rows=await db`WITH o AS(SELECT id FROM organizations WHERE slug=${ORG}),
-     i AS(INSERT INTO module_work_items(organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata,created_by)
-      SELECT o.id,${workModuleCode},${reference},${category},${title},${description},${owner},${start}::date,${due}::date,${budget},'draft',${JSON.stringify(metadata)}::jsonb,${u.id} FROM o
-      RETURNING id,organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata),
-     t AS(INSERT INTO business_transactions(organization_id,module_code,transaction_type,reference_no,description,transaction_date,status,amount,source_table,source_id,created_by)
-      SELECT i.organization_id,i.module_code,'module_work_item',i.reference_no,i.title,coalesce(i.start_date,i.due_date,CURRENT_DATE),'draft',i.budget_amount,'module_work_items',i.id::text,${u.id} FROM i RETURNING id),
-     linked AS(UPDATE module_work_items SET business_transaction_id=(SELECT id FROM t),updated_at=NOW() WHERE id=(SELECT id FROM i) RETURNING *)
-     SELECT * FROM linked`;
+     t AS(INSERT INTO business_transactions(id,organization_id,module_code,transaction_type,reference_no,description,transaction_date,status,amount,source_table,source_id,created_by)
+      SELECT ${transactionId}::uuid,o.id,${workModuleCode},'module_work_item',${reference},${title},coalesce(${start}::date,${due}::date,CURRENT_DATE),'draft',${budget},'module_work_items',${workItemId},${u.id} FROM o RETURNING id,organization_id),
+     i AS(INSERT INTO module_work_items(id,organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata,business_transaction_id,created_by)
+      SELECT ${workItemId}::uuid,t.organization_id,${workModuleCode},${reference},${category},${title},${description},${owner},${start}::date,${due}::date,${budget},'draft',${JSON.stringify(metadata)}::jsonb,t.id,${u.id} FROM t
+      RETURNING id,organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata,business_transaction_id)
+     SELECT * FROM i`;
     if(!rows.length)return err('Organisasi belum tersedia.',409);
     await audit(db,u.id,'create','module_work_item',String(rows[0].id),{module_code:workModuleCode,reference_no:reference,title,category});
     return NextResponse.json({workItem:rows[0]},{status:201});
