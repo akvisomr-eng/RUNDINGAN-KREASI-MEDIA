@@ -71,7 +71,7 @@ export async function GET(_req:Request,ctx:{params:Promise<{module:string}>}){
    ]);const requests=canProcurement?await db`SELECT p.id,p.request_number,p.description,p.estimated_total,p.status,p.needed_by,p.created_at,p.business_transaction_id,pa.display_name AS supplier_name FROM procurement_requests p JOIN organizations o ON o.id=p.organization_id LEFT JOIN parties pa ON pa.id=p.supplier_party_id WHERE o.slug=${ORG} ORDER BY p.created_at DESC LIMIT 200`:[];return NextResponse.json({items,requests,locations,parties,canProcurement});
   }
   return err('Unknown administration module.',404);
- }catch{return err('Gagal memuat data. Periksa migrasi dan hak akses database Development.',503);}
+ }catch{return err('Gagal memuat data. Periksa migrasi dan hak akses database organisasi.',503);}
 }
 
 export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
