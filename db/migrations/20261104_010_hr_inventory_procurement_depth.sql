@@ -334,7 +334,7 @@ GRANT SELECT,INSERT,UPDATE ON TABLE hr_employee_contracts,hr_attendance_records,
 
 
 -- Enforce tenant-safe references for procurement transaction and AP document links.
--- The global id foreign keys above remain as additional existence checks; these
+-- The global id foreign keys above remain as additional existence checks and these
 -- composite keys ensure the referenced records belong to the same organization.
 ALTER TABLE business_transactions
   ADD CONSTRAINT business_transactions_org_id_uq UNIQUE (organization_id,id);
