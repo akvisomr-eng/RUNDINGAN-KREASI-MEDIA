@@ -25,7 +25,7 @@ export async function GET(req:Request){
  const db:any=getSql();
  try{
   if(view==='overview'){
-   if(!(await allowed(u.id,'finance.accounts.read')))return fail('Forbidden',403);
+   const canReadOverview=await Promise.all(['finance.accounts.read','finance.ar.read','finance.ap.read','finance.cash.read'].map(code=>allowed(u.id,code)));if(!canReadOverview.some(Boolean))return fail('Forbidden',403);
    const [accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics]=await Promise.all([
     db`SELECT a.id,a.code,a.name,a.account_type,a.normal_balance,a.parent_account_id,a.account_group,a.description,a.is_postable,a.is_active,a.cash_flow_category,a.default_tax_code,a.display_order, p.code AS parent_code,p.name AS parent_name FROM finance_accounts a LEFT JOIN finance_accounts p ON p.id=a.parent_account_id AND p.organization_id=a.organization_id WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY a.code`,
     db`SELECT j.id,j.journal_number,j.journal_date,j.document_date,j.reference_no,j.description,j.journal_type,j.source_module_code,j.status,j.created_at,j.business_transaction_id,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(l.id)::int line_count FROM finance_journals j LEFT JOIN finance_journal_lines l ON l.journal_id=j.id JOIN organizations o ON o.id=j.organization_id WHERE o.slug=${ORG} GROUP BY j.id ORDER BY j.journal_date DESC,j.created_at DESC LIMIT 300`,
