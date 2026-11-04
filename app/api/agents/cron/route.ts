@@ -108,6 +108,8 @@ export async function GET(req:Request){
  // Business-module specialist agents use the same shared transaction spine.
  const moduleAgents=[['academy-operations','Academy Operations Agent','ACADEMY'],['creative-operations','Creative Operations Agent','CREATIVE'],['event-operations','Event Operations Agent','EVENT'],['media-operations','Media Operations Agent','MEDIA'],['production-operations','Production Operations Agent','PRODUCTION'],['rental-operations','Rental Operations Agent','RENTAL']];
  for(const [code,name,moduleCode] of moduleAgents){
+  const enabled=await sql`SELECT 1 FROM organization_modules WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND module_code=${moduleCode} AND status='active'`;
+  if(!enabled.length)continue;
   const [statusRows,stale,unlinked]=await Promise.all([
    sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} GROUP BY status ORDER BY status`,
    sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} AND t.status IN('draft','pending') AND t.created_at<NOW()-INTERVAL '14 days'`,
