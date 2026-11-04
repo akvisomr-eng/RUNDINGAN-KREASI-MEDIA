@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
+import Link from 'next/link';
 import { auth } from '@/lib/auth/server';
 import { hasPermission } from '@/lib/auth/permissions';
 import { OperationsWorkspace } from '../operations';
@@ -30,5 +31,5 @@ export default async function EnterpriseModulePage({params}:{params:Promise<{mod
     return <main className="workspace-shell"><section className="ops-content"><p className="auth-eyebrow">403 / AKSES TERBATAS</p><h1>Akses modul tidak tersedia.</h1><p>Hubungi Owner atau administrator untuk mendapatkan izin yang sesuai.</p><a className="workspace-link" href="/workspace/enterprise">Kembali ke administrasi ↗</a></section></main>;
   }
   const canManage=module==='structure' ? await Promise.all(['core.business_units.manage','core.departments.manage','core.locations.manage'].map(p=>hasPermission(data.user.id,p))).then(x=>x.some(Boolean)) : await hasPermission(data.user.id,config.manage);
-  return <OperationsWorkspace module={module} canManage={canManage}/>;
+  return <><div className="ops-content"><p className="ops-quick-links"><Link href="/workspace/enterprise/reports">Laporan operasional HRD & Inventaris ↗</Link></p></div><OperationsWorkspace module={module} canManage={canManage}/></>;
 }
