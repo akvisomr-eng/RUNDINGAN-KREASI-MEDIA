@@ -14,10 +14,11 @@ export async function GET(){
  const user=await actor();if(!user)return fail('Unauthorized',401);
  if(!(await hasPermission(user.id,'hr.employees.read')))return fail('Forbidden',403);
  const db:any=getSql();
+ const canPayroll=await hasPermission(user.id,'hr.payroll.read');
  try{
   const [employees,contracts,attendance,leaveRequests,components]=await Promise.all([
    db`SELECT e.id,e.employee_code,e.full_name,e.job_title,e.status,d.name AS department_name FROM hr_employees e JOIN organizations o ON o.id=e.organization_id LEFT JOIN departments d ON d.id=e.department_id WHERE o.slug=${ORG} AND e.archived_at IS NULL ORDER BY e.full_name`,
-   await hasPermission(user.id,'hr.contracts.read')?db`SELECT c.*,e.employee_code,e.full_name FROM hr_employee_contracts c JOIN organizations o ON o.id=c.organization_id JOIN hr_employees e ON e.id=c.employee_id AND e.organization_id=c.organization_id WHERE o.slug=${ORG} ORDER BY c.start_date DESC LIMIT 500`:[],
+   await hasPermission(user.id,'hr.contracts.read')?db`SELECT c.id,c.contract_number,c.contract_type,c.start_date,c.end_date,CASE WHEN ${canPayroll} THEN c.base_salary ELSE NULL END AS base_salary,c.notes,c.document_refs,c.status,c.created_at,c.updated_at,e.employee_code,e.full_name FROM hr_employee_contracts c JOIN organizations o ON o.id=c.organization_id JOIN hr_employees e ON e.id=c.employee_id AND e.organization_id=c.organization_id WHERE o.slug=${ORG} ORDER BY c.start_date DESC LIMIT 500`:[],
    await hasPermission(user.id,'hr.attendance.read')?db`SELECT a.*,e.employee_code,e.full_name FROM hr_attendance_records a JOIN organizations o ON o.id=a.organization_id JOIN hr_employees e ON e.id=a.employee_id AND e.organization_id=a.organization_id WHERE o.slug=${ORG} ORDER BY a.work_date DESC LIMIT 1000`:[],
    await hasPermission(user.id,'hr.leave.read')?db`SELECT l.*,e.employee_code,e.full_name FROM hr_leave_requests l JOIN organizations o ON o.id=l.organization_id JOIN hr_employees e ON e.id=l.employee_id AND e.organization_id=l.organization_id WHERE o.slug=${ORG} ORDER BY l.start_date DESC LIMIT 500`:[],
    await hasPermission(user.id,'hr.payroll.read')?db`SELECT id,code,name,component_type,is_taxable,is_recurring,is_active,expense_account_id,payable_account_id FROM hr_payroll_components WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`:[],

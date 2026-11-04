@@ -10,6 +10,14 @@ export async function GET(req: Request) {
   if (!data?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!(await hasPermission(data.user.id, 'reports.read'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const report = new URL(req.url).searchParams.get('report') || 'employees';
+  const requiredPermission: Record<string,string> = {
+    employees:'hr.employees.read', contracts:'hr.contracts.read', attendance:'hr.attendance.read',
+    leave:'hr.leave.read', payroll:'hr.payroll.read', stock:'inventory.items.read',
+    'stock-movements':'inventory.movements.read', procurement:'procurement.requests.read',
+    'purchase-orders':'procurement.orders.read', 'goods-receipts':'procurement.orders.read'
+  };
+  if (!requiredPermission[report]) return NextResponse.json({ error: 'Unknown report.' }, { status: 404 });
+  if (!(await hasPermission(data.user.id, requiredPermission[report]))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const sql: any = getSql();
   try {
     if (report === 'employees') {
