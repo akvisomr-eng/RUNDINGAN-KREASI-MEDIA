@@ -56,12 +56,12 @@ export async function GET(_req:Request,ctx:{params:Promise<{module:string}>}){
   }
   if(module==='inventory'){
    if(!(await hasPermission(u.id,'inventory.items.read')))return err('Forbidden',403);
-   const [items,requests,locations,parties]=await Promise.all([
+   const canProcurement=await hasPermission(u.id,'procurement.requests.read');
+   const [items,locations,parties]=await Promise.all([
     db`SELECT i.id,i.sku,i.name,i.unit,i.item_type,i.minimum_stock,i.is_active,coalesce(sum(CASE WHEN m.movement_type IN ('opening','in') THEN m.quantity WHEN m.movement_type='out' THEN -m.quantity ELSE 0 END),0)::numeric(18,3) AS stock FROM inventory_items i JOIN organizations o ON o.id=i.organization_id LEFT JOIN inventory_movements m ON m.item_id=i.id WHERE o.slug=${ORG} GROUP BY i.id ORDER BY i.name`,
-    db`SELECT p.id,p.request_number,p.description,p.estimated_total,p.status,p.needed_by,p.created_at,pa.display_name AS supplier_name FROM procurement_requests p JOIN organizations o ON o.id=p.organization_id LEFT JOIN parties pa ON pa.id=p.supplier_party_id WHERE o.slug=${ORG} ORDER BY p.created_at DESC LIMIT 200`,
     db`SELECT l.id,l.name FROM locations l JOIN organizations o ON o.id=l.organization_id WHERE o.slug=${ORG} AND l.deleted_at IS NULL ORDER BY l.name`,
     db`SELECT id,display_name FROM parties WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY display_name LIMIT 200`
-   ]);return NextResponse.json({items,requests,locations,parties});
+   ]);const requests=canProcurement?await db`SELECT p.id,p.request_number,p.description,p.estimated_total,p.status,p.needed_by,p.created_at,pa.display_name AS supplier_name FROM procurement_requests p JOIN organizations o ON o.id=p.organization_id LEFT JOIN parties pa ON pa.id=p.supplier_party_id WHERE o.slug=${ORG} ORDER BY p.created_at DESC LIMIT 200`:[];return NextResponse.json({items,requests,locations,parties,canProcurement});
   }
   return err('Unknown administration module.',404);
  }catch{return err('Gagal memuat data. Periksa migrasi dan hak akses database Development.',503);}
