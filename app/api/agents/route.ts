@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth/server';
 import { hasPermission } from '@/lib/auth/permissions';
 import { getSql } from '@/lib/db';
 import { AGENTS } from '@/lib/agents/registry';
+import { askLocalModel } from '@/lib/agents/local-model';
 
 export const dynamic='force-dynamic';
 const ORG='rundingan-kreasi-media';
@@ -113,9 +114,11 @@ export async function POST(req:Request){
    if(!recent.length)findings.push({severity:'info',title:'Belum ada hasil agen spesialis',detail:'Jalankan agen domain terlebih dahulu; Orchestrator hanya mengonsolidasikan hasil 24 jam terakhir.'});
    recommendations.push('Prioritaskan temuan critical, lalu warning. Pemilik modul harus menilai konteks sebelum tindakan.');
    recommendations.push('Orchestrator tidak menjalankan perubahan bisnis atau tindakan perbaikan secara otomatis.');
-   const result={agent:agent.name,runtime:'embedded_rules',generated_at:new Date().toISOString(),finding_count:findings.length,summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations,autonomous_scope:'read_only_multi_agent_coordination'};
-   await sql`UPDATE agent_runs SET status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
-   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data) SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime:'embedded_rules'})}::jsonb FROM organizations WHERE slug=${ORG}`;
+   const localInsight=await askLocalModel(agent.name,{summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations});
+   const runtime=localInsight?'local_model':'embedded_rules';
+   const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),finding_count:findings.length,summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations,autonomous_scope:'read_only_multi_agent_coordination'};
+   await sql`UPDATE agent_runs SET runtime=${runtime},status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
+   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data) SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime})}::jsonb FROM organizations WHERE slug=${ORG}`;
    return NextResponse.json({run_id:runId,...result});
   }else if(code==='system-maintenance'){
    const required=['organizations','business_units','parties','audit_logs','finance_accounts','finance_journals','hr_employees','inventory_items','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
@@ -128,10 +131,12 @@ export async function POST(req:Request){
    if(!findings.length)findings.push({severity:'success',title:'Database dan skema inti terdeteksi',detail:'Koneksi berhasil dan seluruh tabel wajib tersedia.'});
    recommendations.push('Agen hanya melakukan pemeriksaan read-only. Perubahan skema, deployment, dan perbaikan kode harus melalui pull request serta persetujuan Owner.');
   }
-  const result={agent:agent.name,runtime:'embedded_rules',generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,autonomous_scope:'read_only_diagnostics'};
-  await sql`UPDATE agent_runs SET status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
+  const localInsight=await askLocalModel(agent.name,{findings,recommendations});
+  const runtime=localInsight?'local_model':'embedded_rules';
+  const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,autonomous_scope:'read_only_diagnostics'};
+  await sql`UPDATE agent_runs SET runtime=${runtime},status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data)
-    SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime:'embedded_rules'})}::jsonb FROM organizations WHERE slug=${ORG}`;
+    SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime})}::jsonb FROM organizations WHERE slug=${ORG}`;
   return NextResponse.json({run_id:runId,...result});
  }catch(e){
   await sql`UPDATE agent_runs SET status='failed',result=${JSON.stringify({error:'Agent diagnostic failed. Check required schema and database permissions.'})}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
