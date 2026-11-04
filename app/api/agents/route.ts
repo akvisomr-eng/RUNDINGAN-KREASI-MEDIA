@@ -18,7 +18,8 @@ export async function GET(){
       WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY created_at DESC LIMIT 30`,
   sql`SELECT id,agent_run_id,action_type,target_table,target_id,payload,risk_level,status,created_at
       FROM agent_actions WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
-      AND status='pending_approval' ORDER BY created_at DESC LIMIT 30`
+      AND status='pending_approval' ORDER BY created_at DESC LIMIT 30`,
+  sql`SELECT module_code FROM organization_modules WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='active'`
  ]);
  const enabled=new Set((activeModules as any[]).map(x=>String(x.module_code)));
  return NextResponse.json({agents:AGENTS.filter(a=>a.code!=='rental-operations'||enabled.has('RENTAL')),runs,actions});
@@ -43,6 +44,8 @@ export async function POST(req:Request){
   const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION','rental-operations':'RENTAL'};
   if(moduleCode[code]){
    const codeValue=moduleCode[code];
+   const enabled=await sql`SELECT 1 FROM organization_modules WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND module_code=${codeValue} AND status='active'`;
+   if(!enabled.length)return fail('Modul belum aktif pada organisasi ini.',409);
    const [statusRows,stale,unlinked]=await Promise.all([
     sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} GROUP BY status ORDER BY status`,
     sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} AND t.status IN('draft','pending') AND t.created_at<NOW()-INTERVAL '14 days'`,
