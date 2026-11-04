@@ -100,6 +100,9 @@ export async function POST(req:Request){
     const taxIds=[...new Set(normalized.map(l=>l.tax_code_id).filter(Boolean))];
     const taxes=taxIds.length?await tx`SELECT id,rate,tax_type,tax_account_id,is_active,effective_from,effective_to FROM finance_tax_codes WHERE organization_id=${oid} AND id=ANY(${taxIds}::uuid[])`:[];
     if(taxes.length!==taxIds.length||taxes.some((t:any)=>!t.is_active||t.tax_type!==(isAR?'vat_out':'vat_in')))throw new Error('Kode pajak tidak aktif atau jenis pajak tidak cocok.');
+    const taxAccountIds=[...new Set(taxes.map((t:any)=>t.tax_account_id).filter(Boolean))];
+    const taxAccounts=taxAccountIds.length?await tx`SELECT id,account_type,is_active,is_postable FROM finance_accounts WHERE organization_id=${oid} AND id=ANY(${taxAccountIds}::uuid[])`:[];
+    if(taxAccounts.length!==taxAccountIds.length||taxAccounts.some((a:any)=>!a.is_active||!a.is_postable||a.account_type!==(isAR?'liability':'asset')))throw new Error('Akun pajak harus aktif, posting, dan bertipe liabilitas untuk PPN keluaran atau aset untuk PPN masukan.');
     const taxById=new Map(taxes.map((t:any)=>[t.id,t]));
     let subtotal=0,taxTotal=0,discountTotal=0;
     for(const l of normalized){const tax:any=l.tax_code_id?taxById.get(l.tax_code_id):null;if(tax&&((tax.effective_from&&docDate<tax.effective_from)||(tax.effective_to&&docDate>tax.effective_to)))throw new Error('Kode pajak tidak berlaku pada tanggal dokumen.');const amount=tax?round(l.tax_base*Number(tax.rate)/100):0;(l as any).tax_amount=amount;(l as any).line_total=round(l.tax_base+amount);(l as any).tax_account_id=tax?.tax_account_id||null;if(amount>0&&!tax?.tax_account_id)throw new Error('Akun pajak pada kode pajak belum dikonfigurasi.');subtotal=round(subtotal+l.tax_base);taxTotal=round(taxTotal+amount);discountTotal=round(discountTotal+l.discount_amount);}
@@ -191,8 +194,10 @@ export async function POST(req:Request){
     const oid=await orgId(tx),rows=await tx`SELECT * FROM finance_settlements WHERE id=${id}::uuid AND organization_id=${oid} FOR UPDATE`;if(!rows.length)throw new Error('Penerimaan/pembayaran tidak ditemukan.');
     const srow=rows[0];if(srow.status!=='draft')throw new Error('Hanya transaksi draft yang dapat diposting.');
     const isReceipt=srow.settlement_type==='customer_receipt';
-    const alloc=await tx`SELECT a.amount,d.id document_id,d.document_number,d.document_type,d.party_id,d.total_amount,d.settled_amount,d.receivable_payable_account_id,d.source_module_code,d.business_unit_id,d.currency,d.exchange_rate FROM finance_settlement_allocations a JOIN finance_documents d ON d.id=a.document_id AND d.organization_id=a.organization_id WHERE a.settlement_id=${id}::uuid AND a.organization_id=${oid} FOR UPDATE OF d`;
+    const alloc=await tx`SELECT a.amount,d.id document_id,d.document_number,d.document_type,d.party_id,d.total_amount,d.settled_amount,d.status document_status,d.receivable_payable_account_id,d.source_module_code,d.business_unit_id,d.currency,d.exchange_rate FROM finance_settlement_allocations a JOIN finance_documents d ON d.id=a.document_id AND d.organization_id=a.organization_id WHERE a.settlement_id=${id}::uuid AND a.organization_id=${oid} FOR UPDATE OF d`;
     if(!alloc.length||round(alloc.reduce((v:number,a:any)=>v+Number(a.amount),0))!==Number(srow.amount))throw new Error('Alokasi pembayaran tidak valid.');
+    const expectedType=isReceipt?'sales_invoice':'purchase_bill';
+    if(alloc.some((a:any)=>(a.document_status!=='posted'&&a.document_status!=='part_paid')||a.document_type!==expectedType||Number(a.amount)>round(Number(a.total_amount)-Number(a.settled_amount))))throw new Error('Dokumen sudah lunas, tidak lagi terbuka, atau nilai alokasi melebihi sisa tagihan.');
     const control=alloc[0].receivable_payable_account_id;if(alloc.some((a:any)=>a.receivable_payable_account_id!==control||a.party_id!==srow.party_id))throw new Error('Alokasi harus satu pihak dan satu akun kontrol.');
     const bank=await tx`SELECT account_id FROM finance_bank_accounts WHERE id=${srow.bank_account_id}::uuid AND organization_id=${oid}`;
     const lines=[{account:bank[0].account_id,description:isReceipt?'Penerimaan pelanggan':'Pembayaran pemasok',debit:isReceipt?Number(srow.amount):0,credit:isReceipt?0:Number(srow.amount)},
