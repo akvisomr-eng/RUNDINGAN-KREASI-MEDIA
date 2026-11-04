@@ -32,7 +32,7 @@ export async function GET(req:Request){
     db`SELECT id,fiscal_year,period_number,name,start_date,end_date,status,closed_at FROM finance_periods WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY start_date DESC LIMIT 50`,
     db`SELECT id,code,name,business_unit_id,is_active FROM finance_cost_centers WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,code,name,module_code,business_unit_id,budget_amount,status FROM finance_projects WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
-    db`SELECT id,code,name,tax_type,rate,is_active FROM finance_tax_codes WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
+    db`SELECT id,code,name,tax_type,rate,tax_account_id,effective_from,effective_to,is_active FROM finance_tax_codes WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,bank_name,account_name,account_number_masked,currency,account_id,is_active FROM finance_bank_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY bank_name`,
     db`SELECT id,code,name FROM business_units WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY code`,
     db`SELECT id,party_type,display_name,legal_name FROM parties WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY display_name LIMIT 500`,
