@@ -6,7 +6,7 @@ This checklist is for the first single-organization internal release. It is not 
 
 - PR #13: module catalog, Report Center foundation, shared transaction spine, enterprise operations and embedded diagnostics (already merged).
 - PR #15: production runtime-role compatibility, health-ledger corrections, CMS draft grants and first operational workspaces for ACADEMY, CREATIVE, EVENT, MEDIA and PRODUCTION.
-- Required additive migrations: `20261103_001_custom_cms` through `20261104_007_module_operational_workspaces`, applied in ascending order after the existing core migrations 0001–0003.
+- Required additive migrations: `20261103_001_custom_cms` through `20261104_010_hr_inventory_procurement_depth`, applied in ascending order after the existing core migrations 0001–0003. This includes Finance foundation (008), AR/AP/cash-bank (009), and HR/Inventory/Procurement depth (010).
 
 ## Before any Production write
 
@@ -14,7 +14,7 @@ This checklist is for the first single-organization internal release. It is not 
 2. Take and verify a Neon Production branch snapshot/restore point.
 3. Confirm the Production deployment uses the Production Neon branch and the restricted login role `rundingan_runtime_web`.
 4. Confirm the role bootstrap in migration 003 creates or reuses `rundingan_app_limited` and grants it to `rundingan_runtime_web`.
-5. Apply migrations 001–007 in order using the database owner role. Do not skip a migration or manually mark it applied.
+5. Apply migrations 001–010 in order using the database owner role. Do not skip a migration or manually mark it applied.
 6. Verify all required tables and migration markers using `/api/health`. Do not continue if it returns anything other than HTTP 200 with schema complete.
 7. Verify CMS draft SELECT/INSERT/UPDATE and module-work-item SELECT/INSERT/UPDATE as the runtime login.
 8. Verify that no temporary release-test records remain.
@@ -27,9 +27,9 @@ Use an authorized Owner account in a real browser session:
 - Create one disposable draft work item in each of ACADEMY, CREATIVE, EVENT, MEDIA and PRODUCTION; verify list, status transition, audit event, transaction link and print output; then remove only the explicitly created test fixtures using an approved cleanup path.
 - Open Report Center and verify date filters, module filter, permission-gated sections and Print / Save as PDF.
 - Create a CMS draft and verify it can be saved and edited. Do not publish a public article as a smoke test.
-- Verify Finance journal drafts are balanced; do not post test journals.
+- Verify Finance journal drafts are balanced; do not post test journals. Verify AR/AP document drafts, settlement allocations and bank statement import/reconciliation drafts without posting or reconciling live balances.
 - Verify HR employee/payroll drafts with synthetic records only; do not approve or disburse payroll.
-- Verify inventory with synthetic item/movement fixtures only; do not alter real stock balances.
+- Verify inventory and procurement using synthetic item, PO and Goods Receipt fixtures only. Confirm tenant-scoped foreign keys, PO-to-AP document linkage and receipt line quantities; do not post stock or alter real stock balances.
 - Verify agents can read diagnostics and persist audit/report records; do not authorize any agent to perform business mutations.
 
 ## Scheduled agents
