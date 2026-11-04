@@ -14,7 +14,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<S
  const params=await searchParams,from=validDate(params.from),to=validDate(params.to);
  const {data}=await auth.getSession();if(!data?.user)redirect('/auth/sign-in');
  if(!(await hasPermission(data.user.id,'reports.read')))return <main className="workspace-shell"><section className="ops-content"><h1>Akses laporan terbatas.</h1><Link href="/workspace/enterprise">Kembali ↗</Link></section></main>;
- const sql=getSql(),org='rundingan-kreasi-media';
+ const sql:any=getSql(),org='rundingan-kreasi-media';
  const [canFinance,canPeople,canPayroll,canInventory,canCrm,canCms,canAudit,canModules]=await Promise.all([
   hasPermission(data.user.id,'finance.journals.read'),hasPermission(data.user.id,'hr.employees.read'),hasPermission(data.user.id,'hr.payroll.read'),
   hasPermission(data.user.id,'inventory.items.read'),hasPermission(data.user.id,'crm.parties.read'),hasPermission(data.user.id,'cms.posts.read'),
