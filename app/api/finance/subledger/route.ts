@@ -60,12 +60,13 @@ export async function GET(req:Request){
   }
   if(view==='cash-bank'){
    if(!(await hasPermission(u.id,'finance.cash.read')))return fail('Forbidden',403);
-   const [banks,reconciliations,settlements]=await Promise.all([
+   const [banks,reconciliations,settlements,statementLines]=await Promise.all([
     db`SELECT b.id,b.bank_name,b.account_name,b.account_number_masked,b.currency,b.account_id,a.code account_code,a.name account_name_gl FROM finance_bank_accounts b JOIN finance_accounts a ON a.id=b.account_id AND a.organization_id=b.organization_id WHERE b.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY b.bank_name`,
     db`SELECT r.*,b.bank_name,b.account_name FROM finance_bank_reconciliations r JOIN finance_bank_accounts b ON b.id=r.bank_account_id AND b.organization_id=r.organization_id WHERE r.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY r.statement_end DESC LIMIT 100`,
-    db`SELECT s.*,p.display_name party_name,b.bank_name FROM finance_settlements s JOIN parties p ON p.id=s.party_id AND p.organization_id=s.organization_id JOIN finance_bank_accounts b ON b.id=s.bank_account_id AND b.organization_id=s.organization_id WHERE s.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY s.settlement_date DESC LIMIT 200`
+    db`SELECT s.*,p.display_name party_name,b.bank_name FROM finance_settlements s JOIN parties p ON p.id=s.party_id AND p.organization_id=s.organization_id JOIN finance_bank_accounts b ON b.id=s.bank_account_id AND b.organization_id=s.organization_id WHERE s.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY s.settlement_date DESC LIMIT 200`,
+    db`SELECT l.*,r.statement_start,r.statement_end,r.status reconciliation_status,b.bank_name FROM finance_bank_statement_lines l JOIN finance_bank_reconciliations r ON r.id=l.reconciliation_id AND r.organization_id=l.organization_id JOIN finance_bank_accounts b ON b.id=l.bank_account_id AND b.organization_id=l.organization_id WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY l.transaction_date DESC LIMIT 500`
    ]);
-   return NextResponse.json({banks,reconciliations,settlements});
+   return NextResponse.json({banks,reconciliations,settlements,statementLines});
   }
   return fail('View subledger tidak dikenal.',404);
  }catch(error){console.error('finance subledger GET',error);return fail('Gagal memuat subledger.',503);}
@@ -220,10 +221,24 @@ export async function POST(req:Request){
    });
    return NextResponse.json({reconciliation:result},{status:201});
   }
+  if(action==='match-statement-line'){
+   if(!(await hasPermission(u.id,'finance.cash.manage')))return fail('Forbidden',403);
+   const lineId=s(b.line_id,80),journalId=s(b.journal_id,80);
+   const matched=await db.begin(async(tx:any)=>{
+    const oid=await orgId(tx),lines=await tx`SELECT l.*,r.statement_start,r.statement_end,r.status reconciliation_status,b.account_id FROM finance_bank_statement_lines l JOIN finance_bank_reconciliations r ON r.id=l.reconciliation_id AND r.organization_id=l.organization_id JOIN finance_bank_accounts b ON b.id=l.bank_account_id AND b.organization_id=l.organization_id WHERE l.id=${lineId}::uuid AND l.organization_id=${oid} FOR UPDATE OF l`;
+    if(!lines.length||lines[0].reconciliation_status==='reconciled')throw new Error('Baris rekening koran tidak tersedia atau rekonsiliasi sudah final.');
+    const j=await tx`SELECT j.id,j.journal_date,j.status,coalesce(sum(l.debit-l.credit),0)::numeric(18,2) movement FROM finance_journals j JOIN finance_journal_lines l ON l.journal_id=j.id AND l.organization_id=j.organization_id WHERE j.id=${journalId}::uuid AND j.organization_id=${oid} AND l.account_id=${lines[0].account_id} GROUP BY j.id`;
+    if(!j.length||j[0].status!=='posted'||String(j[0].journal_date).slice(0,10)<String(lines[0].statement_start).slice(0,10)||String(j[0].journal_date).slice(0,10)>String(lines[0].statement_end).slice(0,10))throw new Error('Jurnal bank harus sudah diposting dan berada dalam periode rekonsiliasi.');
+    const expected=round(Number(lines[0].credit)-Number(lines[0].debit));if(round(Number(j[0].movement))!==expected)throw new Error('Nilai atau arah mutasi jurnal tidak sama dengan rekening koran.');
+    const result=await tx`UPDATE finance_bank_statement_lines SET matched_journal_id=${journalId}::uuid,matched_at=now(),matched_by=${u.id} WHERE id=${lineId}::uuid AND matched_journal_id IS NULL RETURNING id,matched_journal_id`;
+    if(!result.length)throw new Error('Baris rekening koran sudah dicocokkan.');await audit(tx,u.id,'match','finance_bank_statement_line',lineId,{journal_id:journalId});return result[0];
+   });
+   return NextResponse.json({match:matched});
+  }
   if(action==='finalize-reconciliation'){
    if(!(await hasPermission(u.id,'finance.cash.manage')))return fail('Forbidden',403);
-   const id=s(b.id,80),rows=await db`UPDATE finance_bank_reconciliations SET status='reconciled',finalized_by=${u.id},reconciled_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status IN ('draft','in_review') AND difference=0 RETURNING id,status,difference`;
-   if(!rows.length)return fail('Rekonsiliasi hanya dapat difinalisasi jika selisih tepat nol.',409);
+   const id=s(b.id,80),rows=await db`UPDATE finance_bank_reconciliations r SET status='reconciled',finalized_by=${u.id},reconciled_at=now() WHERE r.id=${id}::uuid AND r.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND r.status IN ('draft','in_review') AND r.difference=0 AND NOT EXISTS(SELECT 1 FROM finance_bank_statement_lines l WHERE l.reconciliation_id=r.id AND l.organization_id=r.organization_id AND l.matched_journal_id IS NULL) RETURNING r.id,r.status,r.difference`;
+   if(!rows.length)return fail('Rekonsiliasi hanya dapat difinalisasi jika selisih nol dan semua baris rekening koran telah dicocokkan.',409);
    await audit(db,u.id,'reconcile','finance_bank_reconciliation',id,rows[0]);return NextResponse.json({reconciliation:rows[0]});
   }
   return fail('Operasi subledger tidak dikenal.',404);
