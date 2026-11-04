@@ -119,3 +119,6 @@ a.enterprise-area:hover{background:#e8e9df;border-color:#9ba88e}
 .ops-journal-line{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px}
 @media(max-width:760px){.ops-content{padding:48px 5vw 75px}.ops-heading{align-items:flex-start;flex-direction:column}.ops-form{grid-template-columns:1fr 1fr}.ops-grid{grid-template-columns:1fr}.ops-journal-lines{grid-template-columns:1fr}.ops-journal-line{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:460px){.ops-form{grid-template-columns:1fr}.ops-journal-line{grid-template-columns:1fr}}
+
+.ops-payroll-lines{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:10px}.ops-payroll-row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:12px;align-items:end;padding:12px;border:1px solid var(--line);background:#f8f7f2}.ops-payroll-row>strong{font-size:11px;font-weight:500;color:#46534b;padding-bottom:12px}
+@media(max-width:760px){.ops-payroll-row{grid-template-columns:1fr 1fr}.ops-payroll-row>strong{grid-column:1/-1;padding-bottom:0}}
