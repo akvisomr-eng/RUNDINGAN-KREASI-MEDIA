@@ -39,7 +39,22 @@ export async function POST(req:Request){
  const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
  const recommendations:string[]=[];
  try{
-  if(code==='finance-integrity'){
+  const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION'};
+  if(moduleCode[code]){
+   const codeValue=moduleCode[code];
+   const [statusRows,stale,unlinked]=await Promise.all([
+    sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} GROUP BY status ORDER BY status`,
+    sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} AND t.status IN('draft','pending') AND t.created_at<NOW()-INTERVAL '14 days'`,
+    sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} AND (t.source_table IS NULL OR t.source_id IS NULL)`
+   ]);
+   const total=(statusRows as any[]).reduce((sum,row)=>sum+Number(row.total),0),staleCount=Number((stale[0] as {n:number}).n),unlinkedCount=Number((unlinked[0] as {n:number}).n);
+   if(!total)findings.push({severity:'info',title:'Belum ada transaksi modul',detail:`Belum ada transaksi ${codeValue} pada shared transaction spine. Agen akan memantau ketika workflow modul mulai digunakan.`});
+   if(staleCount)findings.push({severity:'warning',title:'Transaksi modul tertunda',detail:'Transaksi draft/pending lebih dari 14 hari perlu ditinjau.',count:staleCount});
+   if(unlinkedCount)findings.push({severity:'info',title:'Transaksi belum memiliki sumber',detail:'Transaksi belum tertaut ke record operasional asal.',count:unlinkedCount});
+   if(total)findings.push({severity:'success',title:'Ringkasan transaksi modul',detail:`Memeriksa ${total} transaksi ${codeValue} pada database organisasi yang sama.`,count:total});
+   recommendations.push('Pastikan workflow khusus modul menulis ke shared transaction spine dan mereferensikan record sumber.');
+   recommendations.push('Persetujuan transaksi dan pengakuan akuntansi tetap mengikuti otorisasi manusia.');
+  }else if(code==='finance-integrity'){
    const [unbalanced,drafts,unlinked]=await Promise.all([
     sql`SELECT count(*)::int AS n FROM finance_journals j JOIN organizations o ON o.id=j.organization_id
       WHERE o.slug=${ORG} AND j.status='posted' AND (SELECT coalesce(sum(l.debit),0) FROM finance_journal_lines l WHERE l.journal_id=j.id)
