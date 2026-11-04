@@ -48,7 +48,7 @@ export async function GET(req:Request){
    return NextResponse.json({accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics:metrics[0]||{}});
   }
   if(view==='journal-detail'){
-   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const canViewJournal=await Promise.all(['finance.accounts.read','finance.reports.read','finance.journals.create'].map(code=>allowed(u.id,code)));if(!canViewJournal.some(Boolean))return fail('Forbidden',403);
    const id=url.searchParams.get('id')||'';
    const header=await db`SELECT id,journal_number,journal_date,document_date,reference_no,description,journal_type,source_module_code,business_unit_id,party_id,currency,exchange_rate,memo,status FROM finance_journals WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
    if(!header.length)return fail('Jurnal tidak ditemukan.',404);
@@ -238,7 +238,7 @@ export async function POST(req:Request){
     await tx`UPDATE finance_journals SET journal_date=${date}::date,document_date=${docDate}::date,reference_no=${reference},description=${description},journal_type=${str(b.journal_type,30)||'general'},source_module_code=${source},business_unit_id=${unit}::uuid,party_id=${party}::uuid,currency=${str(b.currency,3)||'IDR'},exchange_rate=${num(b.exchange_rate)||1},memo=${str(b.memo,2000)||null},period_id=${period[0]?.id||null} WHERE id=${id}::uuid`;
     await tx`DELETE FROM finance_journal_lines WHERE journal_id=${id}::uuid AND organization_id=${oid}`;
     for(const line of ls)await tx`INSERT INTO finance_journal_lines(organization_id,journal_id,account_id,description,debit,credit,business_unit_id,cost_center_id,project_id,party_id,tax_code,source_module_code) VALUES(${oid},${id}::uuid,${line.account_id}::uuid,${line.description},${line.debit},${line.credit},${line.business_unit_id}::uuid,${line.cost_center_id}::uuid,${line.project_id}::uuid,${line.party_id}::uuid,${line.tax_code},${source})`;
-    if(current[0].business_transaction_id)await tx`UPDATE business_transactions SET reference_no=coalesce(${reference},reference_no),description=${description},transaction_date=${date}::date,amount=${dc/100},currency=${str(b.currency,3)||'IDR'},business_unit_id=${unit}::uuid,party_id=${party}::uuid,updated_at=now() WHERE id=${current[0].business_transaction_id}`;
+    if(current[0].business_transaction_id)await tx`UPDATE business_transactions SET module_code=${source},reference_no=coalesce(${reference},reference_no),description=${description},transaction_date=${date}::date,amount=${dc/100},currency=${str(b.currency,3)||'IDR'},business_unit_id=${unit}::uuid,party_id=${party}::uuid,updated_at=now() WHERE id=${current[0].business_transaction_id}`;
     await audit(tx,u.id,'update','finance_journal',id,{journal_date:date,description,debit:dc/100,credit:cc/100});
     return {id,status:'draft',debit:dc/100,credit:cc/100};
    });
