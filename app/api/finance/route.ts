@@ -73,17 +73,24 @@ export async function GET(req:Request){
     GROUP BY a.id
    )
    SELECT *, (closing_debit-closing_credit)::numeric(18,2) closing_net,
-     (period_credit-period_debit)::numeric(18,2) income_net
+     (CASE WHEN normal_balance='debit' THEN closing_debit-closing_credit ELSE closing_credit-closing_debit END)::numeric(18,2) closing_balance,
+     (CASE WHEN normal_balance='debit' THEN period_debit-period_credit ELSE period_credit-period_debit END)::numeric(18,2) period_balance,
+     (CASE WHEN normal_balance='debit' THEN opening_debit-opening_credit ELSE opening_credit-opening_debit END)::numeric(18,2) opening_balance
    FROM movement ORDER BY code`;
    if(view==='ledger'){
     if(!accountId)return fail('Pilih akun untuk melihat buku besar.');
-    const ledger=await db`SELECT j.id journal_id,j.journal_number,j.journal_date,j.description,j.reference_no,j.source_module_code,l.description line_description,l.debit,l.credit,bt.reference_no source_reference
-      FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id
-      LEFT JOIN business_transactions bt ON bt.id=j.business_transaction_id
-      WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND l.account_id=${accountId}::uuid
-      AND j.status='posted' AND j.journal_date BETWEEN ${start}::date AND ${end}::date
-      AND (${module}='' OR j.source_module_code=${module})
-      ORDER BY j.journal_date,j.journal_number`;
+    const ledger=await db`WITH a AS(SELECT normal_balance FROM finance_accounts WHERE id=${accountId}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})),
+      opening AS(SELECT coalesce(sum(CASE WHEN a.normal_balance='debit' THEN l.debit-l.credit ELSE l.credit-l.debit END),0)::numeric(18,2) balance
+       FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id CROSS JOIN a
+       WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND l.account_id=${accountId}::uuid AND j.status='posted' AND j.journal_date<${start}::date),
+      entries AS(SELECT j.id journal_id,j.journal_number,j.journal_date,j.description,j.reference_no,j.source_module_code,l.description line_description,l.debit,l.credit,bt.reference_no source_reference,
+       CASE WHEN a.normal_balance='debit' THEN l.debit-l.credit ELSE l.credit-l.debit END movement
+       FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id CROSS JOIN a
+       LEFT JOIN business_transactions bt ON bt.id=j.business_transaction_id
+       WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND l.account_id=${accountId}::uuid
+       AND j.status='posted' AND j.journal_date BETWEEN ${start}::date AND ${end}::date
+       AND (${module}='' OR j.source_module_code=${module}))
+      SELECT entries.*,(opening.balance+sum(entries.movement) OVER(ORDER BY entries.journal_date,entries.journal_number ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))::numeric(18,2) running_balance FROM entries CROSS JOIN opening ORDER BY journal_date,journal_number`;
     return NextResponse.json({rows,ledger,view,start,end});
    }
    if(view==='journal-register'){
