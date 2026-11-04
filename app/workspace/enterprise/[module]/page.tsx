@@ -12,6 +12,11 @@ const modules: Record<string,{read:string;manage:string}> = {
   finance: {read:'finance.accounts.read',manage:'finance.accounts.manage'},
   people: {read:'hr.employees.read',manage:'hr.employees.manage'},
   inventory: {read:'inventory.items.read',manage:'inventory.items.manage'},
+  academy: {read:'academy.work.read',manage:'academy.work.manage'},
+  creative: {read:'creative.work.read',manage:'creative.work.manage'},
+  event: {read:'event.work.read',manage:'event.work.manage'},
+  media: {read:'media.work.read',manage:'media.work.manage'},
+  production: {read:'production.work.read',manage:'production.work.manage'},
 };
 
 export default async function EnterpriseModulePage({params}:{params:Promise<{module:string}>}) {
