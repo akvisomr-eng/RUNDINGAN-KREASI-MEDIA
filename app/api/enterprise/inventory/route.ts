@@ -48,13 +48,13 @@ export async function POST(req:Request){
    const min=Number(b.minimum_stock??0),reorder=Number(b.reorder_quantity??0);
    const inventory=str(b,'inventory_account_id',80)||null,expense=str(b,'expense_account_id',80)||null,cogs=str(b,'cogs_account_id',80)||null;
    if(!id||!name||!Number.isFinite(min)||min<0||!Number.isFinite(reorder)||reorder<0)return fail('Data barang tidak valid.');
-   const rows=await db`UPDATE inventory_items i SET name=${name},unit=${unit},category_id=${category}::uuid,minimum_stock=${min},reorder_quantity=${reorder},inventory_account_id=${inventory}::uuid,expense_account_id=${expense}::uuid,cogs_account_id=${cogs}::uuid,updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid AND (${category}::uuid IS NULL OR EXISTS(SELECT 1 FROM inventory_categories c WHERE c.id=${category}::uuid AND c.organization_id=o.id AND c.is_active)) RETURNING i.id,i.sku,i.name,i.is_active`;
+   const rows=await db`UPDATE inventory_items i SET name=${name},unit=${unit},category_id=${category}::uuid,minimum_stock=${min},reorder_quantity=${reorder},inventory_account_id=${inventory}::uuid,expense_account_id=${expense}::uuid,cogs_account_id=${cogs}::uuid,updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid AND (${category}::uuid IS NULL OR EXISTS(SELECT 1 FROM inventory_categories c WHERE c.id=${category}::uuid AND c.organization_id=o.id AND c.is_active)) AND (${inventory}::uuid IS NULL OR EXISTS(SELECT 1 FROM finance_accounts a WHERE a.id=${inventory}::uuid AND a.organization_id=o.id AND a.account_type='asset' AND a.is_active AND a.is_postable)) AND (${expense}::uuid IS NULL OR EXISTS(SELECT 1 FROM finance_accounts a WHERE a.id=${expense}::uuid AND a.organization_id=o.id AND a.account_type='expense' AND a.is_active AND a.is_postable)) AND (${cogs}::uuid IS NULL OR EXISTS(SELECT 1 FROM finance_accounts a WHERE a.id=${cogs}::uuid AND a.organization_id=o.id AND a.account_type='expense' AND a.is_active AND a.is_postable)) RETURNING i.id,i.sku,i.name,i.is_active`;
    if(!rows.length)return fail('Barang atau kategori tidak valid.',409);await audit(db,user.id,'update','inventory_item',id,{name,category_id:category,minimum_stock:min,reorder_quantity:reorder});return NextResponse.json({item:rows[0]});
   }
   if(action==='item_status'){
    if(!(await hasPermission(user.id,'inventory.items.manage')))return fail('Forbidden',403);
    const id=str(b,'item_id',80),active=b.is_active===true;
-   const rows=await db`UPDATE inventory_items i SET is_active=${active},updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid RETURNING i.id,i.sku,i.is_active`;
+   const rows=await db`UPDATE inventory_items i SET is_active=${active},updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid AND (${active}=true OR (coalesce((SELECT sum(CASE WHEN m.movement_type IN('opening','in') THEN m.quantity WHEN m.movement_type='out' THEN -m.quantity ELSE 0 END) FROM inventory_movements m WHERE m.organization_id=o.id AND m.item_id=i.id),0)=0 AND NOT EXISTS(SELECT 1 FROM purchase_order_lines pol JOIN purchase_orders po ON po.id=pol.purchase_order_id WHERE pol.organization_id=o.id AND pol.item_id=i.id AND po.status IN('approved','partially_received') AND pol.received_quantity<pol.quantity))) RETURNING i.id,i.sku,i.is_active`;
    if(!rows.length)return fail('Barang tidak ditemukan atau sudah memiliki riwayat stok; gunakan status nonaktif melalui prosedur pengendalian.',409);await audit(db,user.id,'update_status','inventory_item',id,{is_active:active});return NextResponse.json({item:rows[0]});
   }
   if(action==='request_with_lines'){
@@ -106,6 +106,13 @@ export async function POST(req:Request){
    if(rows[0].business_transaction_id)await db`UPDATE business_transactions SET status=${next==='approved'?'approved':next==='submitted'?'pending':'cancelled'},updated_at=NOW() WHERE id=${rows[0].business_transaction_id}`;
    await audit(db,user.id,'update_status','purchase_order',id,{status:next});return NextResponse.json({purchaseOrder:rows[0]});
   }
+  if(action==='void_goods_receipt'){
+   if(!(await hasPermission(user.id,'procurement.orders.manage')))return fail('Forbidden',403);
+   const id=str(b,'goods_receipt_id',80);
+   const rows=await db`UPDATE goods_receipts gr SET status='void' FROM organizations o WHERE gr.organization_id=o.id AND o.slug=${ORG} AND gr.id=${id}::uuid AND gr.status='draft' RETURNING gr.id,gr.receipt_number,gr.status`;
+   if(!rows.length)return fail('Hanya penerimaan draft yang dapat dibatalkan.',409);
+   await audit(db,user.id,'void','goods_receipt',id,{status:'void'});return NextResponse.json({goodsReceipt:rows[0]});
+  }
   if(action==='goods_receipt'){
    if(!(await hasPermission(user.id,'procurement.orders.manage')))return fail('Forbidden',403);
    const po=str(b,'purchase_order_id',80),notes=str(b,'notes',1000),lines=Array.isArray(b.lines)?b.lines as Record<string,unknown>[]:[];
@@ -118,8 +125,8 @@ export async function POST(req:Request){
     const no='GR-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+crypto.randomUUID().slice(0,6).toUpperCase();
     const header=await tx`INSERT INTO goods_receipts(organization_id,purchase_order_id,receipt_number,notes,created_by) VALUES(${org[0].id},${po}::uuid,${no},${notes||null},${user.id}) RETURNING id,receipt_number,status`;
     for(const line of parsed){
-     const poLine=await tx`SELECT id,item_id,quantity,received_quantity FROM purchase_order_lines WHERE id=${line.po_line_id}::uuid AND organization_id=${org[0].id} AND purchase_order_id=${po}::uuid FOR UPDATE`;
-     if(!poLine.length||String(poLine[0].item_id)!==line.item_id||Number(poLine[0].received_quantity)+line.quantity>Number(poLine[0].quantity))throw new Error('Jumlah penerimaan melebihi sisa PO atau item tidak cocok.');
+     const poLine=await tx`SELECT pol.id,pol.item_id,pol.quantity,pol.received_quantity,coalesce((SELECT sum(gl.quantity) FROM goods_receipt_lines gl JOIN goods_receipts gr ON gr.id=gl.goods_receipt_id AND gr.organization_id=gl.organization_id WHERE gl.organization_id=pol.organization_id AND gl.purchase_order_line_id=pol.id AND gr.status='draft'),0)::numeric AS pending_quantity FROM purchase_order_lines pol WHERE pol.id=${line.po_line_id}::uuid AND organization_id=${org[0].id} AND purchase_order_id=${po}::uuid FOR UPDATE`;
+     if(!poLine.length||String(poLine[0].item_id)!==line.item_id||Number(poLine[0].received_quantity)+Number(poLine[0].pending_quantity)+line.quantity>Number(poLine[0].quantity))throw new Error('Jumlah penerimaan melebihi sisa PO atau item tidak cocok.');
      const loc=line.location_id?await tx`SELECT id FROM locations WHERE id=${line.location_id}::uuid AND organization_id=${org[0].id} AND deleted_at IS NULL`:[{id:null}];if(!loc.length)throw new Error('Lokasi penerimaan tidak valid.');
      await tx`INSERT INTO goods_receipt_lines(organization_id,goods_receipt_id,purchase_order_line_id,item_id,location_id,quantity,unit_cost) VALUES(${org[0].id},${header[0].id},${line.po_line_id}::uuid,${line.item_id}::uuid,${line.location_id||null}::uuid,${line.quantity},${line.unit_cost})`;
     }

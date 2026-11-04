@@ -43,6 +43,8 @@ export async function POST(req:Request){
    }
    const name=str(b,'full_name',160),job=str(b,'job_title',120)||null,email=str(b,'email',254)||null,phone=str(b,'phone',40)||null,dept=str(b,'department_id',80)||null,unit=str(b,'business_unit_id',80)||null,salary=num(b.base_salary),status=str(b,'status',20)||'active';
    if(!id||!name||!Number.isFinite(salary)||salary<0||!['active','leave','resigned','terminated'].includes(status))return fail('Data pegawai tidak valid.');
+   const currentSalary=await db`SELECT base_salary FROM hr_employees WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+   if(currentSalary.length&&Number(currentSalary[0].base_salary)!==salary&&!(await hasPermission(user.id,'hr.payroll.manage')))return fail('Perubahan gaji memerlukan izin hr.payroll.manage.',403);
    const rows=await db`UPDATE hr_employees e SET full_name=${name},job_title=${job},email=${email},phone=${phone},department_id=${dept}::uuid,business_unit_id=${unit}::uuid,base_salary=${salary},status=${status},updated_by=${user.id},updated_at=NOW() FROM organizations o WHERE e.organization_id=o.id AND o.slug=${ORG} AND e.id=${id}::uuid AND e.archived_at IS NULL AND (${dept}::uuid IS NULL OR EXISTS(SELECT 1 FROM departments d WHERE d.id=${dept}::uuid AND d.organization_id=o.id AND d.deleted_at IS NULL)) AND (${unit}::uuid IS NULL OR EXISTS(SELECT 1 FROM business_units bu WHERE bu.id=${unit}::uuid AND bu.organization_id=o.id AND bu.deleted_at IS NULL)) RETURNING e.id,e.employee_code,e.full_name,e.status`;
    if(!rows.length)return fail('Pegawai atau referensi organisasi tidak valid.',409);
    await audit(db,user.id,'update','hr_employee',id,{full_name:name,job_title:job,status});return NextResponse.json({employee:rows[0]});
@@ -78,7 +80,10 @@ export async function POST(req:Request){
    if(!(await hasPermission(user.id,'hr.payroll.components.manage')))return fail('Forbidden',403);
    const code=str(b,'code',40).toUpperCase(),name=str(b,'name',120),type=str(b,'component_type',30);
    if(!code||!name||!['earning','deduction','employer_contribution'].includes(type))return fail('Komponen payroll tidak valid.');
-   const rows=await db`INSERT INTO hr_payroll_components(organization_id,code,name,component_type,is_taxable,is_recurring,expense_account_id,payable_account_id) SELECT id,${code},${name},${type},${(b.is_taxable===true||b.is_taxable==='true')},${(b.is_recurring===true||b.is_recurring==='true')},${str(b,'expense_account_id',80)||null}::uuid,${str(b,'payable_account_id',80)||null}::uuid FROM organizations WHERE slug=${ORG} RETURNING id,code,name,component_type`;
+   const expenseId=str(b,'expense_account_id',80)||null,payableId=str(b,'payable_account_id',80)||null;
+   if(expenseId){const a=await db`SELECT id FROM finance_accounts WHERE id=${expenseId}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND account_type='expense' AND is_active AND is_postable`;if(!a.length)return fail('Akun beban komponen harus akun expense aktif dan postable.');}
+   if(payableId){const a=await db`SELECT id FROM finance_accounts WHERE id=${payableId}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND account_type='liability' AND is_active AND is_postable`;if(!a.length)return fail('Akun kewajiban komponen harus akun liability aktif dan postable.');}
+   const rows=await db`INSERT INTO hr_payroll_components(organization_id,code,name,component_type,is_taxable,is_recurring,expense_account_id,payable_account_id) SELECT id,${code},${name},${type},${(b.is_taxable===true||b.is_taxable==='true')},${(b.is_recurring===true||b.is_recurring==='true')},${expenseId}::uuid,${payableId}::uuid FROM organizations WHERE slug=${ORG} RETURNING id,code,name,component_type`;
    await audit(db,user.id,'create','hr_payroll_component',String(rows[0].id),{code,name,component_type:type});return NextResponse.json({component:rows[0]},{status:201});
   }
   return fail('Aksi HR tidak dikenal.',404);
