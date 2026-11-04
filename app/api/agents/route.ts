@@ -97,8 +97,28 @@ export async function POST(req:Request){
    if(b)findings.push({severity:'warning',title:'Metadata SEO belum lengkap',detail:'Artikel terbit belum memiliki SEO title atau description.',count:b});
    if(!findings.length)findings.push({severity:'success',title:'Pemeriksaan editorial lulus',detail:'Tidak ditemukan draft lama atau metadata SEO kosong.'});
    recommendations.push('Agen memberi rekomendasi; publikasi artikel tetap membutuhkan persetujuan editor.');
+  }else if(code==='enterprise-orchestrator'){
+   const recent=await sql`SELECT agent_code,result,created_at FROM agent_runs WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='completed' AND agent_code<>'enterprise-orchestrator' AND created_at>NOW()-INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 60`;
+   const byAgent=new Map<string,any>();
+   for(const row of recent as any[]){if(!byAgent.has(String(row.agent_code)))byAgent.set(String(row.agent_code),row.result||{});}
+   let critical=0,warning=0,info=0;
+   const consolidated:any[]=[];
+   for(const [agentCode,result] of byAgent.entries()){
+    for(const finding of (Array.isArray(result.findings)?result.findings:[])){
+     if(finding.severity==='critical')critical++;else if(finding.severity==='warning')warning++;else if(finding.severity==='info')info++;
+     consolidated.push({agent_code:agentCode,...finding});
+    }
+   }
+   findings.push(...consolidated.slice(0,40));
+   if(!recent.length)findings.push({severity:'info',title:'Belum ada hasil agen spesialis',detail:'Jalankan agen domain terlebih dahulu; Orchestrator hanya mengonsolidasikan hasil 24 jam terakhir.'});
+   recommendations.push('Prioritaskan temuan critical, lalu warning. Pemilik modul harus menilai konteks sebelum tindakan.');
+   recommendations.push('Orchestrator tidak menjalankan perubahan bisnis atau tindakan perbaikan secara otomatis.');
+   const result={agent:agent.name,runtime:'embedded_rules',generated_at:new Date().toISOString(),finding_count:findings.length,summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations,autonomous_scope:'read_only_multi_agent_coordination'};
+   await sql`UPDATE agent_runs SET status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
+   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data) SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime:'embedded_rules'})}::jsonb FROM organizations WHERE slug=${ORG}`;
+   return NextResponse.json({run_id:runId,...result});
   }else if(code==='system-maintenance'){
-   const required=['organizations','business_units','parties','audit_logs','finance_accounts','finance_journals','hr_employees','inventory_items','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs'];
+   const required=['organizations','business_units','parties','audit_logs','finance_accounts','finance_journals','hr_employees','inventory_items','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
    const tables=await sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`;
    const found=new Set(tables.map((x:any)=>String(x.table_name)));
    const missing=required.filter(x=>!found.has(x));
