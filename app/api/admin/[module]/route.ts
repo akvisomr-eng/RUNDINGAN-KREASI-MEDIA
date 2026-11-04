@@ -14,7 +14,7 @@ const audit=async(sql:ReturnType<typeof getSql>,actor:string,action:string,type:
 
 export async function GET(_req:Request,ctx:{params:Promise<{module:string}>}){
  const u=await userNow(); if(!u)return err('Unauthorized',401);
- const {module}=await ctx.params; const db=getSql();
+ const {module}=await ctx.params; const db:any=getSql();
  try{
   if(module==='access'){
    if(!(await hasPermission(u.id,'core.users.read'))||!(await hasPermission(u.id,'core.roles.read')))return err('Forbidden',403);
@@ -72,7 +72,7 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
  if(origin){try{if(!host||new URL(origin).host!==host)return err('Invalid request origin.',403);}catch{return err('Invalid request origin.',403);}}
  const u=await userNow();if(!u)return err('Unauthorized',401);
  let b:Record<string,unknown>;try{b=await req.json();}catch{return err('Invalid JSON body.');}
- const {module}=await ctx.params,db=getSql(),n=(k:string)=>Number(b[k]??0);
+ const {module}=await ctx.params,db:any=getSql(),n=(k:string)=>Number(b[k]??0);
  try{
   if(module==='access'){
    if(!(await hasPermission(u.id,'core.users.manage')))return err('Forbidden',403);
