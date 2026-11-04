@@ -153,6 +153,9 @@ export default async function EnterpriseCorePage() {
             <span>07 / INVENTORY & PROCUREMENT</span><strong>Inventaris & pengadaan</strong><small>Master barang, pergerakan stok, dan permintaan pembelian.</small><b>{canReadInventory ? "Buka modul ↗" : "Memerlukan izin Inventory"}</b></Link>
           <Link href="/workspace/enterprise/governance" className="enterprise-area">
             <span>08 / GOVERNANCE</span><strong>Audit & kepatuhan</strong><small>{canReadAudit ? "Jejak aktivitas pengguna dan perubahan data." : "Memerlukan izin core.audit.read."}</small><b>{canReadAudit ? "Lihat audit log ↗" : "Akses terbatas"}</b></Link>
+          {canReadModules ? <Link href="/workspace/enterprise/modules" className="enterprise-area"><span>09 / MODULE PLUGINS</span><strong>Katalog modul & plugin</strong><small>ACADEMY, CREATIVE, EVENT, MEDIA, PRODUCTION dan plugin RENTAL.</small><b>Kelola modul ↗</b></Link> : null}
+          {canReadAgents ? <Link href="/workspace/enterprise/agents" className="enterprise-area"><span>10 / MULTI-AGENT AI</span><strong>AI Operations & Maintenance</strong><small>Agen domain, pemeriksaan integritas, website dan database.</small><b>Buka control center ↗</b></Link> : null}
+          {canReadReports ? <Link href="/workspace/reports" className="enterprise-area"><span>11 / REPORT CENTER</span><strong>Laporan & dokumen cetak</strong><small>Laporan keuangan, SDM, persediaan, CRM, CMS, audit dan transaksi.</small><b>Buka laporan ↗</b></Link> : null}
         </div>
         <p className="enterprise-footnote">Angka di atas dibaca langsung dari database Development. Modul yang berstatus belum diimplementasikan tidak melakukan operasi bisnis atau mengubah data.</p>
       </section>

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth/server';
 import { hasPermission } from '@/lib/auth/permissions';
 import { getSql } from '@/lib/db';
 import { AGENTS } from '@/lib/agents/registry';
+import { askLocalModel } from '@/lib/agents/local-model';
 
 export const dynamic='force-dynamic';
 const ORG='rundingan-kreasi-media';
@@ -11,15 +12,17 @@ const fail=(message:string,status=400)=>NextResponse.json({error:message},{statu
 export async function GET(){
  const {data}=await auth.getSession();if(!data?.user)return fail('Unauthorized',401);
  if(!(await hasPermission(data.user.id,'agents.read')))return fail('Forbidden',403);
- const sql=getSql();
- const [runs,actions]=await Promise.all([
+ const sql:any=getSql();
+ const [runs,actions,activeModules]=await Promise.all([
   sql`SELECT id,agent_code,runtime,status,input,result,created_at,finished_at FROM agent_runs
       WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY created_at DESC LIMIT 30`,
   sql`SELECT id,agent_run_id,action_type,target_table,target_id,payload,risk_level,status,created_at
       FROM agent_actions WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
-      AND status='pending_approval' ORDER BY created_at DESC LIMIT 30`
+      AND status='pending_approval' ORDER BY created_at DESC LIMIT 30`,
+  sql`SELECT module_code FROM organization_modules WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='active'`
  ]);
- return NextResponse.json({agents:AGENTS,runs,actions});
+ const enabled=new Set((activeModules as any[]).map(x=>String(x.module_code)));
+ return NextResponse.json({agents:AGENTS.filter(a=>a.code!=='rental-operations'||enabled.has('RENTAL')),runs,actions});
 }
 
 export async function POST(req:Request){
@@ -30,7 +33,7 @@ export async function POST(req:Request){
  let body:Record<string,unknown>;try{body=await req.json();}catch{return fail('Invalid JSON body.');}
  const code=typeof body.agent_code==='string'?body.agent_code:'';
  const agent=AGENTS.find(x=>x.code===code);if(!agent)return fail('Agen tidak dikenal.');
- const sql=getSql();
+ const sql:any=getSql();
  const created=await sql`INSERT INTO agent_runs(organization_id,agent_code,runtime,status,input,created_by)
    SELECT id,${code},'embedded_rules','running',${JSON.stringify({trigger:'manual'})}::jsonb,${data.user.id}
    FROM organizations WHERE slug=${ORG} RETURNING id`;
@@ -38,7 +41,24 @@ export async function POST(req:Request){
  const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
  const recommendations:string[]=[];
  try{
-  if(code==='finance-integrity'){
+  const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION','rental-operations':'RENTAL'};
+  if(moduleCode[code]){
+   const codeValue=moduleCode[code];
+   const enabled=await sql`SELECT 1 FROM organization_modules WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND module_code=${codeValue} AND status='active'`;
+   if(!enabled.length)return fail('Modul belum aktif pada organisasi ini.',409);
+   const [statusRows,stale,unlinked]=await Promise.all([
+    sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} GROUP BY status ORDER BY status`,
+    sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} AND t.status IN('draft','pending') AND t.created_at<NOW()-INTERVAL '14 days'`,
+    sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${codeValue} AND (t.source_table IS NULL OR t.source_id IS NULL)`
+   ]);
+   const total=(statusRows as any[]).reduce((sum,row)=>sum+Number(row.total),0),staleCount=Number((stale[0] as {n:number}).n),unlinkedCount=Number((unlinked[0] as {n:number}).n);
+   if(!total)findings.push({severity:'info',title:'Belum ada transaksi modul',detail:`Belum ada transaksi ${codeValue} pada shared transaction spine. Agen akan memantau ketika workflow modul mulai digunakan.`});
+   if(staleCount)findings.push({severity:'warning',title:'Transaksi modul tertunda',detail:'Transaksi draft/pending lebih dari 14 hari perlu ditinjau.',count:staleCount});
+   if(unlinkedCount)findings.push({severity:'info',title:'Transaksi belum memiliki sumber',detail:'Transaksi belum tertaut ke record operasional asal.',count:unlinkedCount});
+   if(total)findings.push({severity:'success',title:'Ringkasan transaksi modul',detail:`Memeriksa ${total} transaksi ${codeValue} pada database organisasi yang sama.`,count:total});
+   recommendations.push('Pastikan workflow khusus modul menulis ke shared transaction spine dan mereferensikan record sumber.');
+   recommendations.push('Persetujuan transaksi dan pengakuan akuntansi tetap mengikuti otorisasi manusia.');
+  }else if(code==='finance-integrity'){
    const [unbalanced,drafts,unlinked]=await Promise.all([
     sql`SELECT count(*)::int AS n FROM finance_journals j JOIN organizations o ON o.id=j.organization_id
       WHERE o.slug=${ORG} AND j.status='posted' AND (SELECT coalesce(sum(l.debit),0) FROM finance_journal_lines l WHERE l.journal_id=j.id)
@@ -97,21 +117,45 @@ export async function POST(req:Request){
    if(b)findings.push({severity:'warning',title:'Metadata SEO belum lengkap',detail:'Artikel terbit belum memiliki SEO title atau description.',count:b});
    if(!findings.length)findings.push({severity:'success',title:'Pemeriksaan editorial lulus',detail:'Tidak ditemukan draft lama atau metadata SEO kosong.'});
    recommendations.push('Agen memberi rekomendasi; publikasi artikel tetap membutuhkan persetujuan editor.');
+  }else if(code==='enterprise-orchestrator'){
+   const recent=await sql`SELECT agent_code,result,created_at FROM agent_runs WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='completed' AND agent_code<>'enterprise-orchestrator' AND created_at>NOW()-INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 60`;
+   const byAgent=new Map<string,any>();
+   for(const row of recent as any[]){if(!byAgent.has(String(row.agent_code)))byAgent.set(String(row.agent_code),row.result||{});}
+   let critical=0,warning=0,info=0;
+   const consolidated:any[]=[];
+   for(const [agentCode,result] of byAgent.entries()){
+    for(const finding of (Array.isArray(result.findings)?result.findings:[])){
+     if(finding.severity==='critical')critical++;else if(finding.severity==='warning')warning++;else if(finding.severity==='info')info++;
+     consolidated.push({agent_code:agentCode,...finding});
+    }
+   }
+   findings.push(...consolidated.slice(0,40));
+   if(!recent.length)findings.push({severity:'info',title:'Belum ada hasil agen spesialis',detail:'Jalankan agen domain terlebih dahulu; Orchestrator hanya mengonsolidasikan hasil 24 jam terakhir.'});
+   recommendations.push('Prioritaskan temuan critical, lalu warning. Pemilik modul harus menilai konteks sebelum tindakan.');
+   recommendations.push('Orchestrator tidak menjalankan perubahan bisnis atau tindakan perbaikan secara otomatis.');
+   const localInsight=await askLocalModel(agent.name,{summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations});
+   const runtime=localInsight?'local_model':'embedded_rules';
+   const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),finding_count:findings.length,summary:{agents_seen:byAgent.size,critical,warning,info},findings,recommendations,autonomous_scope:'read_only_multi_agent_coordination'};
+   await sql`UPDATE agent_runs SET runtime=${runtime},status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
+   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data) SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime})}::jsonb FROM organizations WHERE slug=${ORG}`;
+   return NextResponse.json({run_id:runId,...result});
   }else if(code==='system-maintenance'){
-   const required=['organizations','business_units','parties','audit_logs','finance_accounts','finance_journals','hr_employees','inventory_items','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs'];
+   const required=['organizations','business_units','parties','audit_logs','cms_posts','cms_seo_audits','finance_accounts','finance_journals','finance_journal_lines','hr_employees','hr_payroll_runs','hr_payroll_lines','inventory_items','inventory_movements','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
    const tables=await sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`;
    const found=new Set(tables.map((x:any)=>String(x.table_name)));
    const missing=required.filter(x=>!found.has(x));
-   const migration=await sql`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_004_unified_modules_agents_reports') AS applied`;
+   const migration=await sql`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_004_unified_modules_agents_reports') AS unified_applied,EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_005_enterprise_transaction_module') AS enterprise_applied,EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_006_limited_role_health_read_permissions') AS health_permissions_applied`;
    if(missing.length)findings.push({severity:'critical',title:'Skema database belum lengkap',detail:'Tabel wajib tidak ditemukan: '+missing.join(', '),count:missing.length});
-   if(!(migration[0] as {applied:boolean}).applied)findings.push({severity:'warning',title:'Migration registry belum tercatat',detail:'Migration 004 belum tercatat pada schema_migrations.'});
+   if(!(migration[0] as {unified_applied:boolean;enterprise_applied:boolean;health_permissions_applied:boolean}).unified_applied||!(migration[0] as {unified_applied:boolean;enterprise_applied:boolean;health_permissions_applied:boolean}).enterprise_applied||!(migration[0] as {unified_applied:boolean;enterprise_applied:boolean;health_permissions_applied:boolean}).health_permissions_applied)findings.push({severity:'warning',title:'Migration registry belum lengkap',detail:'Migration 004, 005 atau 006 belum tercatat pada schema_migrations.'});
    if(!findings.length)findings.push({severity:'success',title:'Database dan skema inti terdeteksi',detail:'Koneksi berhasil dan seluruh tabel wajib tersedia.'});
    recommendations.push('Agen hanya melakukan pemeriksaan read-only. Perubahan skema, deployment, dan perbaikan kode harus melalui pull request serta persetujuan Owner.');
   }
-  const result={agent:agent.name,runtime:'embedded_rules',generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,autonomous_scope:'read_only_diagnostics'};
-  await sql`UPDATE agent_runs SET status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
+  const localInsight=await askLocalModel(agent.name,{findings,recommendations});
+  const runtime=localInsight?'local_model':'embedded_rules';
+  const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,autonomous_scope:'read_only_diagnostics'};
+  await sql`UPDATE agent_runs SET runtime=${runtime},status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data)
-    SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime:'embedded_rules'})}::jsonb FROM organizations WHERE slug=${ORG}`;
+    SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime})}::jsonb FROM organizations WHERE slug=${ORG}`;
   return NextResponse.json({run_id:runId,...result});
  }catch(e){
   await sql`UPDATE agent_runs SET status='failed',result=${JSON.stringify({error:'Agent diagnostic failed. Check required schema and database permissions.'})}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
