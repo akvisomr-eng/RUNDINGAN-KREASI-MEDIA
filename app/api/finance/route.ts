@@ -358,7 +358,12 @@ export async function POST(req:Request){
    if(!(await allowed(u.id,'finance.periods.manage')))return fail('Forbidden',403);
    const year=num(b.fiscal_year),n=num(b.period_number),name=str(b.name,80),start=str(b.start_date,10),end=str(b.end_date,10);
    if(year<2000||year>2200||n<1||n>13||!name||!validDate(start)||!validDate(end)||end<start)return fail('Periode tidak valid.');
-   const rows=await db`INSERT INTO finance_periods(organization_id,fiscal_year,period_number,name,start_date,end_date) SELECT id,${year},${n},${name},${start}::date,${end}::date FROM organizations WHERE slug=${ORG} RETURNING id,name,status`;
+   const rows=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    const overlap=await tx`SELECT id,name FROM finance_periods WHERE organization_id=${oid} AND start_date<=${end}::date AND end_date>=${start}::date LIMIT 1`;
+    if(overlap.length)throw new Error('Rentang periode bertabrakan dengan periode '+overlap[0].name+'.');
+    return tx`INSERT INTO finance_periods(organization_id,fiscal_year,period_number,name,start_date,end_date) VALUES(${oid},${year},${n},${name},${start}::date,${end}::date) RETURNING id,name,status`;
+   });
    return NextResponse.json({period:rows[0]},{status:201});
   }
   if(action==='close-period'){
