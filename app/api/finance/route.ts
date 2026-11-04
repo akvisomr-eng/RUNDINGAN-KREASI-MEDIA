@@ -221,6 +221,11 @@ export async function POST(req:Request){
     const accountIds=[...new Set(ls.map(x=>x.account_id))];
     const validAccounts=await tx`SELECT id FROM finance_accounts WHERE organization_id=${org[0].id} AND id=ANY(${accountIds}::uuid[]) AND is_active AND is_postable`;
     if(validAccounts.length!==accountIds.length)throw new Error('Satu atau lebih akun tidak aktif, bukan akun posting, atau bukan milik organisasi.');
+    if(unit){const bu=await tx`SELECT id FROM business_units WHERE id=${unit}::uuid AND organization_id=${org[0].id} AND deleted_at IS NULL`;if(!bu.length)throw new Error('Unit bisnis tidak valid.');}
+    const partyIds=[...new Set([party,...ls.map(x=>x.party_id)].filter(Boolean))];
+    if(partyIds.length){const validParties=await tx`SELECT id FROM parties WHERE organization_id=${org[0].id} AND id=ANY(${partyIds}::uuid[]) AND deleted_at IS NULL`;if(validParties.length!==partyIds.length)throw new Error('Pihak terkait bukan milik organisasi atau sudah tidak aktif.');}
+    const lineUnits=[...new Set(ls.map(x=>x.business_unit_id).filter(Boolean))];
+    if(lineUnits.length){const validUnits=await tx`SELECT id FROM business_units WHERE organization_id=${org[0].id} AND id=ANY(${lineUnits}::uuid[]) AND deleted_at IS NULL`;if(validUnits.length!==lineUnits.length)throw new Error('Unit bisnis pada baris jurnal tidak valid.');}
     const period=await tx`SELECT id,status FROM finance_periods WHERE organization_id=${org[0].id} AND ${date}::date BETWEEN start_date AND end_date LIMIT 1`;
     if(period.length&&period[0].status!=='open')throw new Error('Periode akuntansi sudah ditutup.');
     const jno='JRN-'+date.replace(/-/g,'')+'-'+crypto.randomUUID().slice(0,8).toUpperCase();
