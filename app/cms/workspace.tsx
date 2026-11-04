@@ -35,8 +35,8 @@ const emptyForm = {
 };
 
 export default function CmsWorkspace({
-  userName, canCreate, canUpdate, canAudit,
-}: { userName: string; canCreate: boolean; canUpdate: boolean; canAudit: boolean }) {
+  userName, canCreate, canUpdate, canAudit, canPublish,
+}: { userName: string; canCreate: boolean; canUpdate: boolean; canAudit: boolean; canPublish: boolean }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -117,6 +117,20 @@ export default function CmsWorkspace({
     } finally { setBusy(false); }
   }
 
+
+  async function publishPost(id: string, title: string) {
+    setBusy(true); setMessage('');
+    try {
+      const response = await fetch('/api/cms/posts/' + id + '/publish', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Artikel gagal dipublikasikan.');
+      setMessage('Artikel “' + title + '” berhasil dipublikasikan: /artikel/' + data.post.slug);
+      await loadPosts();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Publikasi artikel gagal.');
+    } finally { setBusy(false); }
+  }
+
   async function saveDraft() {
     setBusy(true); setMessage('');
     try {
@@ -186,7 +200,7 @@ export default function CmsWorkspace({
       </div>
       <section className="cms-panel cms-posts">
         <div className="cms-panel-heading"><div><p className="cms-kicker">04 / CONTENT LIBRARY</p><h2>Recent articles</h2></div><button className="cms-button cms-button-outline" onClick={loadPosts}>Refresh ↻</button></div>
-        {loading ? <p className="cms-empty">Memuat artikel…</p> : posts.length === 0 ? <p className="cms-empty">Belum ada artikel. Draft pertama Anda akan muncul di sini setelah migrasi database diterapkan.</p> : <div className="cms-post-list">{posts.map(post => <article className="cms-post-row" key={post.id}><div><strong>{post.title}</strong><span>/artikel/{post.slug}</span></div><span className="cms-status">{post.status}</span><time>{new Date(post.updated_at).toLocaleDateString('id-ID')}</time>{canUpdate && post.status === 'draft' && <button className="cms-text-button" disabled={busy} onClick={() => editDraft(post.id)}>Edit draft</button>}</article>)}</div>}
+        {loading ? <p className="cms-empty">Memuat artikel…</p> : posts.length === 0 ? <p className="cms-empty">Belum ada artikel. Draft pertama Anda akan muncul di sini setelah migrasi database diterapkan.</p> : <div className="cms-post-list">{posts.map(post => <article className="cms-post-row" key={post.id}><div><strong>{post.title}</strong><span>/artikel/{post.slug}</span></div><span className="cms-status">{post.status}</span><time>{new Date(post.updated_at).toLocaleDateString('id-ID')}</time>{canUpdate && post.status === 'draft' && <button className="cms-text-button" disabled={busy} onClick={() => editDraft(post.id)}>Edit draft</button>}{canPublish && (post.status === 'draft' || post.status === 'review') && <button className="cms-text-button" disabled={busy} onClick={() => publishPost(post.id, post.title)}>Publikasikan ↗</button>}{post.status === 'published' && <a className="cms-text-button" href={'/artikel/' + post.slug} target="_blank" rel="noreferrer">Lihat artikel ↗</a>}</article>)}</div>}
       </section>
       <footer className="cms-footer">RUNDINGAN KREASI MEDIA · EDITORIAL CONTROL DESK · V1</footer>
     </main>
