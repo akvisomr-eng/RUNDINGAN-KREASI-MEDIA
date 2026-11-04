@@ -62,7 +62,7 @@ export async function POST(req:Request){
   }
   if(action==='leave'){
    if(!(await hasPermission(user.id,'hr.leave.manage')))return fail('Forbidden',403);
-   const employee=str(b,'employee_id',80),type=str(b,'leave_type',30),start=str(b,'start_date',10),end=str(b,'end_date',10),days=num(b,'total_days');
+   const employee=str(b,'employee_id',80),type=str(b,'leave_type',30),start=str(b,'start_date',10),end=str(b,'end_date',10),days=num(b.total_days);
    if(!employee||!['annual','sick','maternity','paternity','unpaid','other'].includes(type)||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start||!Number.isFinite(days)||days<=0)return fail('Permohonan cuti tidak valid.');
    const rows=await db`INSERT INTO hr_leave_requests(organization_id,employee_id,leave_type,start_date,end_date,total_days,reason,created_by) SELECT o.id,e.id,${type},${start}::date,${end}::date,${days},${str(b,'reason',1000)||null},${user.id} FROM organizations o JOIN hr_employees e ON e.organization_id=o.id AND e.id=${employee}::uuid AND e.archived_at IS NULL WHERE o.slug=${ORG} RETURNING id,status,start_date,end_date,total_days`;
    if(!rows.length)return fail('Pegawai tidak valid.',409);await audit(db,user.id,'create','hr_leave_request',String(rows[0].id),{employee_id:employee,leave_type:type});return NextResponse.json({leave:rows[0]},{status:201});
