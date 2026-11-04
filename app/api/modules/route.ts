@@ -19,7 +19,7 @@ export async function GET() {
     FROM module_catalog c
     JOIN organizations o ON o.slug=${ORG}
     LEFT JOIN organization_modules m ON m.organization_id=o.id AND m.module_code=c.code
-    ORDER BY c.default_enabled DESC,c.code
+    WHERE c.code <> 'ENTERPRISE'\n    ORDER BY c.default_enabled DESC,c.code
   `;
   return NextResponse.json({modules:rows});
 }
