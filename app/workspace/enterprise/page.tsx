@@ -68,7 +68,7 @@ export default async function EnterpriseCorePage() {
   const canReadUsers = await hasPermission(session.user.id, 'core.users.read');
   const canReadRoles = await hasPermission(session.user.id, 'core.roles.read');
   const canReadUnits = await hasPermission(session.user.id, 'core.business_units.read');
-  const canReadAudit = await hasPermission(session.user.id, 'core.audit.read');
+  const [canReadAudit, canReadFinance, canReadPeople, canReadInventory] = await Promise.all([hasPermission(session.user.id, 'core.audit.read'), hasPermission(session.user.id, 'finance.accounts.read'), hasPermission(session.user.id, 'hr.employees.read'), hasPermission(session.user.id, 'inventory.items.read')]);
 
   const metrics: Metric[] = [
     { label: 'UNIT BISNIS', value: organization.business_units, detail: canReadUnits ? 'Data unit organisasi' : 'Izin detail unit tidak tersedia' },
@@ -127,12 +127,12 @@ export default async function EnterpriseCorePage() {
           <span>STATUS IMPLEMENTASI</span>
         </div>
         <div className="enterprise-areas">
-          <Link href="/workspace" className="enterprise-area">
+          <Link href="/workspace/enterprise/access" className="enterprise-area">
             <span>01 / ACCESS CONTROL</span><strong>Identitas & hak akses</strong>
             <small>Role aktif: {organization.active_roles} · Penugasan aktif: {organization.active_assignments}</small>
             <b>Ringkasan tersedia ↗</b>
           </Link>
-          <Link href="/workspace" className="enterprise-area">
+          <Link href="/workspace/enterprise/structure" className="enterprise-area">
             <span>02 / ORGANIZATION STRUCTURE</span><strong>Struktur organisasi & unit bisnis</strong>
             <small>{organization.business_units} unit bisnis · {organization.departments} departemen · {organization.locations} lokasi</small>
             <b>Ringkasan tersedia ↗</b>
@@ -145,23 +145,14 @@ export default async function EnterpriseCorePage() {
             <span>04 / CONTENT MANAGEMENT</span><strong>CMS & SEO Studio</strong>
             <small>Editorial, publikasi, metadata, dan audit SEO</small><b>Buka modul ↗</b>
           </Link>
-          <article className="enterprise-area is-planned">
-            <span>05 / FINANCE & ACCOUNTING</span><strong>Keuangan & akuntansi</strong>
-            <small>Fondasi modul belum tersedia pada workspace ini.</small><b>Belum diimplementasikan</b>
-          </article>
-          <article className="enterprise-area is-planned">
-            <span>06 / PEOPLE OPERATIONS</span><strong>HRD & payroll</strong>
-            <small>Fondasi modul belum tersedia pada workspace ini.</small><b>Belum diimplementasikan</b>
-          </article>
-          <article className="enterprise-area is-planned">
-            <span>07 / INVENTORY & PROCUREMENT</span><strong>Inventaris & pengadaan</strong>
-            <small>Fondasi modul belum tersedia pada workspace ini.</small><b>Belum diimplementasikan</b>
-          </article>
-          <article className="enterprise-area is-planned">
-            <span>08 / GOVERNANCE</span><strong>Audit & kepatuhan</strong>
-            <small>{canReadAudit ? 'Izin audit tersedia; halaman log terperinci belum dibangun.' : 'Memerlukan izin core.audit.read.'}</small>
-            <b>Ringkasan {organization.audit_events} event</b>
-          </article>
+          <Link href="/workspace/enterprise/finance" className="enterprise-area">
+            <span>05 / FINANCE & ACCOUNTING</span><strong>Keuangan & akuntansi</strong><small>Chart of accounts, jurnal umum, dan pemeriksaan keseimbangan.</small><b>{canReadFinance ? "Buka modul ↗" : "Memerlukan izin Finance"}</b></Link>
+          <Link href="/workspace/enterprise/people" className="enterprise-area">
+            <span>06 / PEOPLE OPERATIONS</span><strong>HRD & payroll</strong><small>Data pegawai, departemen, dan draft payroll manual.</small><b>{canReadPeople ? "Buka modul ↗" : "Memerlukan izin HR"}</b></Link>
+          <Link href="/workspace/enterprise/inventory" className="enterprise-area">
+            <span>07 / INVENTORY & PROCUREMENT</span><strong>Inventaris & pengadaan</strong><small>Master barang, pergerakan stok, dan permintaan pembelian.</small><b>{canReadInventory ? "Buka modul ↗" : "Memerlukan izin Inventory"}</b></Link>
+          <Link href="/workspace/enterprise/governance" className="enterprise-area">
+            <span>08 / GOVERNANCE</span><strong>Audit & kepatuhan</strong><small>{canReadAudit ? "Jejak aktivitas pengguna dan perubahan data." : "Memerlukan izin core.audit.read."}</small><b>{canReadAudit ? "Lihat audit log ↗" : "Akses terbatas"}</b></Link>
         </div>
         <p className="enterprise-footnote">Angka di atas dibaca langsung dari database Development. Modul yang berstatus belum diimplementasikan tidak melakukan operasi bisnis atau mengubah data.</p>
       </section>
