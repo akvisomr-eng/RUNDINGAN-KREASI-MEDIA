@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/auth/permissions';
 import { getSql } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 const ORG = 'rundingan-kreasi-media';
+const workModuleCodes:Record<string,string>={academy:'ACADEMY',creative:'CREATIVE',event:'EVENT',media:'MEDIA',production:'PRODUCTION'};
 async function userNow(){ const {data}=await auth.getSession(); return data?.user??null; }
 const err=(message:string,status=400)=>NextResponse.json({error:message},{status});
 const s=(b:Record<string,unknown>,k:string,n=200)=>typeof b[k]==='string'?(b[k] as string).trim().slice(0,n):'';
@@ -16,6 +17,12 @@ export async function GET(_req:Request,ctx:{params:Promise<{module:string}>}){
  const u=await userNow(); if(!u)return err('Unauthorized',401);
  const {module}=await ctx.params; const db:any=getSql();
  try{
+  const workModuleCode=workModuleCodes[module];
+  if(workModuleCode){
+   if(!(await hasPermission(u.id,`${module}.work.read`)))return err('Forbidden',403);
+   const workItems=await db`SELECT id,reference_no,module_code,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata,business_transaction_id,created_at,updated_at FROM module_work_items WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND module_code=${workModuleCode} ORDER BY coalesce(due_date,start_date) NULLS LAST,updated_at DESC LIMIT 300`;
+   return NextResponse.json({workItems});
+  }
   if(module==='access'){
    if(!(await hasPermission(u.id,'core.users.read'))||!(await hasPermission(u.id,'core.roles.read')))return err('Forbidden',403);
    const [users,roles,assignments]=await Promise.all([
@@ -74,6 +81,45 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
  let b:Record<string,unknown>;try{b=await req.json();}catch{return err('Invalid JSON body.');}
  const {module}=await ctx.params,db:any=getSql(),n=(k:string)=>Number(b[k]??0);
  try{
+  const workModuleCode=workModuleCodes[module];
+  if(workModuleCode){
+   if(!(await hasPermission(u.id,`${module}.work.manage`)))return err('Forbidden',403);
+   if(s(b,'action')==='create_work_item'){
+    const title=s(b,'title',180),category=s(b,'category',80)||'General',description=s(b,'description',3000),owner=s(b,'owner_name',160)||null;
+    const start=s(b,'start_date',10)||null,due=s(b,'due_date',10)||null,budget=n('budget_amount');
+    const validDate=(value:string|null)=>!value||(/^\d{4}-\d{2}-\d{2}$/.test(value)&&(()=>{const d=new Date(value+'T00:00:00.000Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;})());
+    const metadata=typeof b.metadata==='object'&&b.metadata!==null&&!Array.isArray(b.metadata)?b.metadata:{};
+    if(title.length<3||!category||!validDate(start)||!validDate(due)||(start&&due&&due<start)||!Number.isFinite(budget)||budget<0||Math.abs(budget*100-Math.round(budget*100))>0.000001||JSON.stringify(metadata).length>8000)return err('Data pekerjaan tidak valid. Periksa judul, tanggal, anggaran dan metadata.');
+    const reference='MOD-'+workModuleCode+'-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+crypto.randomUUID().slice(0,8).toUpperCase();
+    const rows=await db`WITH o AS(SELECT id FROM organizations WHERE slug=${ORG}),
+     i AS(INSERT INTO module_work_items(organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata,created_by)
+      SELECT o.id,${workModuleCode},${reference},${category},${title},${description},${owner},${start}::date,${due}::date,${budget},'draft',${JSON.stringify(metadata)}::jsonb,${u.id} FROM o
+      RETURNING id,organization_id,module_code,reference_no,category,title,description,owner_name,start_date,due_date,budget_amount,status,metadata),
+     t AS(INSERT INTO business_transactions(organization_id,module_code,transaction_type,reference_no,description,transaction_date,status,amount,source_table,source_id,created_by)
+      SELECT i.organization_id,i.module_code,'module_work_item',i.reference_no,i.title,coalesce(i.start_date,i.due_date,CURRENT_DATE),'draft',i.budget_amount,'module_work_items',i.id::text,${u.id} FROM i RETURNING id),
+     linked AS(UPDATE module_work_items SET business_transaction_id=(SELECT id FROM t),updated_at=NOW() WHERE id=(SELECT id FROM i) RETURNING *)
+     SELECT * FROM linked`;
+    if(!rows.length)return err('Organisasi belum tersedia.',409);
+    await audit(db,u.id,'create','module_work_item',String(rows[0].id),{module_code:workModuleCode,reference_no:reference,title,category});
+    return NextResponse.json({workItem:rows[0]},{status:201});
+   }
+   if(s(b,'action')==='work_item_status'){
+    const id=s(b,'work_item_id',80),next=s(b,'status',20);
+    const allowed=['in_progress','review','approved','completed','cancelled'];
+    if(!id||!allowed.includes(next))return err('Transisi status pekerjaan tidak valid.');
+    const transactionStatus=next==='approved'?'approved':next==='completed'?'posted':next==='cancelled'?'cancelled':'pending';
+    const rows=await db`WITH w AS(UPDATE module_work_items w SET status=${next},updated_at=NOW()
+      FROM organizations o WHERE w.organization_id=o.id AND o.slug=${ORG} AND w.module_code=${workModuleCode} AND w.id=${id}::uuid
+      AND ((w.status='draft' AND ${next} IN('in_progress','cancelled')) OR (w.status='in_progress' AND ${next} IN('review','cancelled')) OR (w.status='review' AND ${next} IN('approved','in_progress','cancelled')) OR (w.status='approved' AND ${next} IN('completed','cancelled')))
+      RETURNING w.id,w.reference_no,w.title,w.status,w.business_transaction_id),
+     t AS(UPDATE business_transactions SET status=${transactionStatus},updated_at=NOW() WHERE id=(SELECT business_transaction_id FROM w) RETURNING id)
+     SELECT w.* FROM w`;
+    if(!rows.length)return err('Pekerjaan tidak ditemukan atau transisi status tidak diizinkan.',409);
+    await audit(db,u.id,'update_status','module_work_item',id,{module_code:workModuleCode,status:next});
+    return NextResponse.json({workItem:rows[0]});
+   }
+   return err('Aksi modul tidak dikenal.',404);
+  }
   if(module==='access'){
    if(!(await hasPermission(u.id,'core.users.manage')))return err('Forbidden',403);
    if(s(b,'action')==='assign'){
