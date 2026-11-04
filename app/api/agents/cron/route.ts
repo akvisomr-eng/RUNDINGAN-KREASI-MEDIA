@@ -1,6 +1,5 @@
 import {NextResponse} from 'next/server';
 import {getSql} from '@/lib/db';
-import {askLocalModel} from '@/lib/agents/local-model';
 export const dynamic='force-dynamic';
 const ORG='rundingan-kreasi-media';
 const requiredTables=['organizations','business_units','parties','audit_logs','cms_posts','finance_accounts','finance_journals','finance_journal_lines','hr_employees','hr_payroll_runs','hr_payroll_lines','inventory_items','inventory_movements','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
@@ -19,9 +18,8 @@ export async function GET(req:Request){
  if(!foundTables.has('agent_runs')||!foundTables.has('audit_logs'))return NextResponse.json({status:'degraded',missing_tables:missingTables,missing_migrations:missingMigrations,detail:'Schema is incomplete; diagnostic could not be persisted.'},{status:503});
 
  async function save(code:string,name:string,findings:any[],recommendations:string[],extra:Record<string,unknown>={}){
-  const insight=await askLocalModel(name,{findings,recommendations,extra});
-  const runtime=insight?'local_model':'embedded_rules';
-  const result={agent:name,runtime,local_model_insight:insight,generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,...extra,autonomous_scope:'scheduled_read_only_diagnostics'};
+  const runtime='embedded_rules';
+  const result={agent:name,runtime,generated_at:new Date().toISOString(),finding_count:findings.length,findings,recommendations,...extra,autonomous_scope:'scheduled_read_only_diagnostics'};
   const rows=await sql`INSERT INTO agent_runs(organization_id,agent_code,runtime,status,input,result,created_by,finished_at)
    SELECT id,${code},${runtime},'completed','{"trigger":"vercel_cron"}'::jsonb,${JSON.stringify(result)}::jsonb,'system:vercel-cron',NOW()
    FROM organizations WHERE slug=${ORG} RETURNING id`;
