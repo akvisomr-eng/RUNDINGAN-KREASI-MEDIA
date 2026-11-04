@@ -107,7 +107,8 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     const id=s(b,'work_item_id',80),next=s(b,'status',20);
     const allowed=['in_progress','review','approved','completed','cancelled'];
     if(!id||!allowed.includes(next))return err('Transisi status pekerjaan tidak valid.');
-    const transactionStatus=next==='approved'?'approved':next==='completed'?'posted':next==='cancelled'?'cancelled':'pending';
+    // Keep `posted` reserved for accounting journals; operational completion is tracked on the work item.
+    const transactionStatus=next==='cancelled'?'cancelled':next==='approved'||next==='completed'?'approved':'pending';
     const rows=await db`WITH w AS(UPDATE module_work_items w SET status=${next},updated_at=NOW()
       FROM organizations o WHERE w.organization_id=o.id AND o.slug=${ORG} AND w.module_code=${workModuleCode} AND w.id=${id}::uuid
       AND ((w.status='draft' AND ${next} IN('in_progress','cancelled')) OR (w.status='in_progress' AND ${next} IN('review','cancelled')) OR (w.status='review' AND ${next} IN('approved','in_progress','cancelled')) OR (w.status='approved' AND ${next} IN('completed','cancelled')))
