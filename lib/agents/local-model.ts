@@ -19,7 +19,7 @@ export async function askLocalModel(agentName:string,context:unknown):Promise<st
     {role:'system',content:'Anda adalah analis operasional internal Rundingan. Analisis hanya temuan yang diberikan. Jangan mengarang fakta, angka, atau data yang tidak tersedia. Berikan ringkasan risiko dan langkah pemeriksaan yang aman dalam Bahasa Indonesia. Jangan menyuruh melakukan pembayaran, penghapusan, publikasi, atau perubahan produksi otomatis.'},
     {role:'user',content:JSON.stringify({agent:agentName,diagnostics:context})}
    ]
-  }),signal:AbortSignal.timeout(15000),cache:'no-store'});
+  }),signal:AbortSignal.timeout(8000),cache:'no-store'});
   if(!response.ok)return null;
   const payload=await response.json() as LocalModelResponse;
   const text=payload.message?.content||payload.response;
