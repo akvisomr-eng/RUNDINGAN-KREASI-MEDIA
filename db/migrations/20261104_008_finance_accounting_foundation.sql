@@ -9,19 +9,9 @@ ALTER TABLE finance_accounts
   ADD COLUMN IF NOT EXISTS default_tax_code text,
   ADD COLUMN IF NOT EXISTS display_order integer NOT NULL DEFAULT 0;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_accounts_org_id_id_uq') THEN
-    ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_org_id_id_uq UNIQUE (organization_id,id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_accounts_parent_fk') THEN
-    ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_parent_fk
-      FOREIGN KEY (organization_id,parent_account_id) REFERENCES finance_accounts(organization_id,id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_accounts_parent_not_self') THEN
-    ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_parent_not_self CHECK(parent_account_id IS NULL OR parent_account_id<>id);
-  END IF;
-END $$;
+ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_org_id_id_uq UNIQUE (organization_id,id);
+ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_parent_fk FOREIGN KEY (organization_id,parent_account_id) REFERENCES finance_accounts(organization_id,id);
+ALTER TABLE finance_accounts ADD CONSTRAINT finance_accounts_parent_not_self CHECK(parent_account_id IS NULL OR parent_account_id<>id);
 
 CREATE TABLE IF NOT EXISTS finance_cost_centers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -145,16 +135,8 @@ ALTER TABLE finance_journals
   ADD COLUMN IF NOT EXISTS reversed_journal_id uuid REFERENCES finance_journals(id),
   ADD COLUMN IF NOT EXISTS period_id uuid REFERENCES finance_periods(id);
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journals_org_id_id_uq') THEN
-    ALTER TABLE finance_journals ADD CONSTRAINT finance_journals_org_id_id_uq UNIQUE(organization_id,id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journals_business_unit_fk') THEN
-    ALTER TABLE finance_journals ADD CONSTRAINT finance_journals_business_unit_fk
-      FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
-  END IF;
-END $$;
+ALTER TABLE finance_journals ADD CONSTRAINT finance_journals_org_id_id_uq UNIQUE(organization_id,id);
+ALTER TABLE finance_journals ADD CONSTRAINT finance_journals_business_unit_fk FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
 
 ALTER TABLE finance_journal_lines
   ADD COLUMN IF NOT EXISTS organization_id uuid,
@@ -169,25 +151,10 @@ UPDATE finance_journal_lines l SET organization_id=j.organization_id
 FROM finance_journals j WHERE j.id=l.journal_id AND l.organization_id IS NULL;
 ALTER TABLE finance_journal_lines ALTER COLUMN organization_id SET NOT NULL;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journal_lines_org_journal_fk') THEN
-    ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_org_journal_fk
-      FOREIGN KEY(organization_id,journal_id) REFERENCES finance_journals(organization_id,id) ON DELETE CASCADE;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journal_lines_org_account_fk') THEN
-    ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_org_account_fk
-      FOREIGN KEY(organization_id,account_id) REFERENCES finance_accounts(organization_id,id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journal_lines_cost_center_fk') THEN
-    ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_cost_center_fk
-      FOREIGN KEY(organization_id,cost_center_id) REFERENCES finance_cost_centers(organization_id,id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_journal_lines_project_fk') THEN
-    ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_project_fk
-      FOREIGN KEY(organization_id,project_id) REFERENCES finance_projects(organization_id,id);
-  END IF;
-END $$;
+ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_org_journal_fk FOREIGN KEY(organization_id,journal_id) REFERENCES finance_journals(organization_id,id) ON DELETE CASCADE;
+ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_org_account_fk FOREIGN KEY(organization_id,account_id) REFERENCES finance_accounts(organization_id,id);
+ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_cost_center_fk FOREIGN KEY(organization_id,cost_center_id) REFERENCES finance_cost_centers(organization_id,id);
+ALTER TABLE finance_journal_lines ADD CONSTRAINT finance_journal_lines_project_fk FOREIGN KEY(organization_id,project_id) REFERENCES finance_projects(organization_id,id);
 
 ALTER TABLE finance_journals DROP CONSTRAINT IF EXISTS finance_journals_status_check;
 ALTER TABLE finance_journals ADD CONSTRAINT finance_journals_status_check
