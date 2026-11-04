@@ -105,6 +105,23 @@ export async function GET(req:Request){
  if(!cmsFindings.length)cmsFindings.push({severity:'success',title:'Pemeriksaan editorial lulus',detail:'Tidak ditemukan draft lama atau metadata SEO kosong.'});
  runs.push(await save('cms-editorial','CMS Editorial Agent',cmsFindings,['Publikasi artikel tetap memerlukan persetujuan editor.']));
 
+ // Business-module specialist agents use the same shared transaction spine.
+ const moduleAgents=[['academy-operations','Academy Operations Agent','ACADEMY'],['creative-operations','Creative Operations Agent','CREATIVE'],['event-operations','Event Operations Agent','EVENT'],['media-operations','Media Operations Agent','MEDIA'],['production-operations','Production Operations Agent','PRODUCTION']];
+ for(const [code,name,moduleCode] of moduleAgents){
+  const [statusRows,stale,unlinked]=await Promise.all([
+   sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} GROUP BY status ORDER BY status`,
+   sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} AND t.status IN('draft','pending') AND t.created_at<NOW()-INTERVAL '14 days'`,
+   sql`SELECT count(*)::int AS n FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} AND (t.source_table IS NULL OR t.source_id IS NULL)`
+  ]);
+  const total=(statusRows as any[]).reduce((sum,row)=>sum+Number(row.total),0),staleCount=Number(stale[0].n),unlinkedCount=Number(unlinked[0].n);
+  const findings:any[]=[];
+  if(!total)findings.push({severity:'info',title:'Belum ada transaksi modul',detail:`Belum ada transaksi ${moduleCode} pada shared transaction spine.`});
+  if(staleCount)findings.push({severity:'warning',title:'Transaksi modul tertunda',detail:'Transaksi draft/pending lebih dari 14 hari.',count:staleCount});
+  if(unlinkedCount)findings.push({severity:'info',title:'Transaksi belum tertaut sumber',detail:'Transaksi belum memiliki record operasional asal.',count:unlinkedCount});
+  if(total)findings.push({severity:'success',title:'Ringkasan transaksi modul',detail:`Memeriksa ${total} transaksi ${moduleCode}.`,count:total});
+  runs.push(await save(code,name,findings,['Workflow modul harus menulis ke shared transaction spine; tindakan bisnis memerlukan persetujuan.'],{transaction_statuses:statusRows}));
+ }
+
  // Cross-agent orchestration and risk summary.
  const allFindings:any[]=[];
  for(const run of runs){for(const item of (run.findings||[]))allFindings.push({agent_code:run.agent?.toLowerCase().replace(/ /g,'-'),...item});}
