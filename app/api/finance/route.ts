@@ -366,7 +366,9 @@ export async function POST(req:Request){
    const id=str(b.id,80);
    const rows=await db.begin(async(tx:any)=>{
     const openJournals=await tx`SELECT count(*)::int n FROM finance_journals j JOIN finance_periods p ON p.organization_id=j.organization_id AND j.journal_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND j.status IN ('draft','submitted','approved')`;
-    if(Number(openJournals[0]?.n||0)>0)throw new Error('Masih ada jurnal draft/menunggu persetujuan di periode ini.');
+    const openDocs=await tx`SELECT count(*)::int n FROM finance_documents d JOIN finance_periods p ON p.organization_id=d.organization_id AND d.document_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND d.status IN ('draft','submitted','approved')`;
+    const openSettlements=await tx`SELECT count(*)::int n FROM finance_settlements s JOIN finance_periods p ON p.organization_id=s.organization_id AND s.settlement_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND s.status='draft'`;
+    if(Number(openJournals[0]?.n||0)>0||Number(openDocs[0]?.n||0)>0||Number(openSettlements[0]?.n||0)>0)throw new Error('Masih ada jurnal, invoice/tagihan, atau penerimaan/pembayaran draft yang belum diselesaikan pada periode ini.');
     return tx`UPDATE finance_periods SET status='closed',closed_by=${u.id},closed_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='open' RETURNING id,name,status`;
    });
    if(!rows.length)return fail('Periode tidak ditemukan atau sudah ditutup.',409);
