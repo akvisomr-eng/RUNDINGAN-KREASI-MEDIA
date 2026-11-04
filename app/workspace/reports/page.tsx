@@ -7,13 +7,14 @@ import './reports.css';
 import {PrintButton} from './print-button';
 export const dynamic='force-dynamic';
 type Search={from?:string;to?:string};
-const validDate=(v?:string)=>v&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
+const validDate=(v?:string)=>{if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(v))return null;const parsed=new Date(`${v}T00:00:00.000Z`);return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===v?v:null;};
 const money=(v:any)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(v||0));
 function ReportTable({title,headers,rows,empty}:{title:string;headers:string[];rows:any[][];empty:string}){return <section className="report-section"><h2>{title}</h2>{rows.length?<div className="ops-table-wrap"><table className="ops-table"><thead><tr>{headers.map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{v}</td>)}</tr>)}</tbody></table></div>:<p className="ops-empty">{empty}</p>}</section>}
 export default async function ReportsPage({searchParams}:{searchParams:Promise<Search>}){
- const params=await searchParams,from=validDate(params.from),to=validDate(params.to);
+ const params=await searchParams,from=validDate(params.from),to=validDate(params.to),dateError=Boolean((params.from&&!from)||(params.to&&!to)||(from&&to&&from>to));
  const {data}=await auth.getSession();if(!data?.user)redirect('/auth/sign-in');
  if(!(await hasPermission(data.user.id,'reports.read')))return <main className="workspace-shell"><section className="ops-content"><h1>Akses laporan terbatas.</h1><Link href="/workspace/enterprise">Kembali ↗</Link></section></main>;
+ if(dateError)return <main className="workspace-shell"><section className="ops-content"><h1>Rentang tanggal tidak valid.</h1><p>Gunakan tanggal kalender yang valid dan pastikan tanggal awal tidak melewati tanggal akhir.</p><Link href="/workspace/reports">Reset filter laporan ↗</Link></section></main>;
  const sql:any=getSql(),org='rundingan-kreasi-media';
  const [canFinance,canPeople,canPayroll,canInventory,canProcurement,canCrm,canCms,canAudit,canModules]=await Promise.all([
   hasPermission(data.user.id,'finance.journals.read'),hasPermission(data.user.id,'hr.employees.read'),hasPermission(data.user.id,'hr.payroll.read'),
