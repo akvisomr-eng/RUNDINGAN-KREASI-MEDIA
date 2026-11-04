@@ -204,8 +204,22 @@ export async function POST(req:Request){
    if(action!=='deactivate-account'&&(!code||!name||!['asset','liability','equity','revenue','expense'].includes(type)||!['debit','credit'].includes(normal)))return fail('Data akun tidak valid.');
    const rows=await db.begin(async(tx:any)=>{
     if(action==='deactivate-account')return tx`UPDATE finance_accounts SET is_active=false,updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
-    if(parent){const p=await tx`SELECT id,is_postable FROM finance_accounts WHERE id=${parent}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;if(!p.length||p[0].is_postable)return [];}
-    if(action==='update-account')return tx`UPDATE finance_accounts SET code=${code},name=${name},account_type=${type},normal_balance=${normal},parent_account_id=${parent}::uuid,account_group=${str(b.account_group,100)||null},description=${str(b.description,1000)||null},is_postable=${b.is_postable!==false},cash_flow_category=${str(b.cash_flow_category,40)||null},default_tax_code=${str(b.default_tax_code,40)||null},display_order=${num(b.display_order)},is_active=${b.is_active!==false},updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
+    if(parent){
+     if(parent===id)return [];
+     const p=await tx`SELECT id,is_postable,account_type FROM finance_accounts WHERE id=${parent}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+     if(!p.length||p[0].is_postable||p[0].account_type!==type)return [];
+     if(action==='update-account'){
+      const cycle=await tx`WITH RECURSIVE descendants(id) AS (SELECT id FROM finance_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND parent_account_id=${id}::uuid UNION ALL SELECT a.id FROM finance_accounts a JOIN descendants d ON a.parent_account_id=d.id WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG})) SELECT id FROM descendants WHERE id=${parent}::uuid LIMIT 1`;
+      if(cycle.length)return [];
+     }
+    }
+    if(action==='update-account'){
+     const current=await tx`SELECT account_type,normal_balance FROM finance_accounts WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+     if(!current.length)return [];
+     const used=await tx`SELECT 1 FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND l.account_id=${id}::uuid AND j.status='posted' LIMIT 1`;
+     if(used.length&&(current[0].account_type!==type||current[0].normal_balance!==normal||b.is_postable===false))throw new Error('Jenis, saldo normal, dan status posting akun tidak dapat diubah setelah digunakan pada jurnal terposting.');
+     return tx`UPDATE finance_accounts SET code=${code},name=${name},account_type=${type},normal_balance=${normal},parent_account_id=${parent}::uuid,account_group=${str(b.account_group,100)||null},description=${str(b.description,1000)||null},is_postable=${b.is_postable!==false},cash_flow_category=${str(b.cash_flow_category,40)||null},default_tax_code=${str(b.default_tax_code,40)||null},display_order=${num(b.display_order)},is_active=${b.is_active!==false},updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
+    }
     return tx`INSERT INTO finance_accounts(organization_id,code,name,account_type,normal_balance,parent_account_id,account_group,description,is_postable,cash_flow_category,default_tax_code,display_order)
       SELECT id,${code},${name},${type},${normal},${parent}::uuid,${str(b.account_group,100)||null},${str(b.description,1000)||null},${b.is_postable!==false},${str(b.cash_flow_category,40)||null},${str(b.default_tax_code,40)||null},${num(b.display_order)}
       FROM organizations WHERE slug=${ORG} RETURNING id,code,name`;
