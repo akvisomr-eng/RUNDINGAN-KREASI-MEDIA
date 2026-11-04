@@ -11,7 +11,7 @@ const fail=(message:string,status=400)=>NextResponse.json({error:message},{statu
 export async function GET(){
  const {data}=await auth.getSession();if(!data?.user)return fail('Unauthorized',401);
  if(!(await hasPermission(data.user.id,'agents.read')))return fail('Forbidden',403);
- const sql=getSql();
+ const sql:any=getSql();
  const [runs,actions]=await Promise.all([
   sql`SELECT id,agent_code,runtime,status,input,result,created_at,finished_at FROM agent_runs
       WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY created_at DESC LIMIT 30`,
