@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS purchase_order_lines (
   FOREIGN KEY(organization_id,purchase_order_id) REFERENCES purchase_orders(organization_id,id) ON DELETE CASCADE,
   FOREIGN KEY(organization_id,item_id) REFERENCES inventory_items(organization_id,id)
 );
+ALTER TABLE purchase_order_lines ADD CONSTRAINT purchase_order_lines_org_id_uq UNIQUE(organization_id,id);
 CREATE TABLE IF NOT EXISTS goods_receipts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id),
