@@ -324,3 +324,52 @@ Buttons must reflect role permissions and record state. The application must sho
 - Phase 4: Consolidation, recurring journals, forecasting, management reporting and accounting assistant agents.
 
 A feature is not production-accounting-ready until its database constraints, permission checks, audit trail, report reconciliation and real transaction tests pass.
+
+
+## 9. AR/AP and cash-bank implementation contract
+
+### Customer invoice and supplier bill lifecycle
+- A sales invoice is a receivable document; a purchase bill is a payable document.
+- Both require a counterparty, document number, document date, due date, currency, exchange rate, control account and one or more detail lines.
+- Detail lines carry quantity, unit, unit price, discount, tax code, tax base, tax amount, revenue/expense account, cost center and project.
+- Sales invoice lines may only post to active revenue accounts. Purchase bill lines may post to active expense or asset accounts.
+- Output tax codes must resolve to an active, postable liability account. Recoverable input tax codes must resolve to an active, postable asset account. Tax rate and effective dates are master data, never hard-coded.
+- Workflow is Draft → Submitted → Approved → Posted. Posting atomically creates a balanced journal and links the document to the journal and shared business transaction spine.
+- A posted invoice/bill is immutable. Corrections require credit/debit notes or controlled reversal workflows; they are not deleted.
+
+### Customer receipts and supplier payments
+- A receipt/payment must reference a party, bank/cash account, date, amount and one or more open documents.
+- Allocation totals must equal the settlement amount. Partial settlement is supported.
+- A settlement cannot be posted if it exceeds the outstanding document balance, has the wrong party/type, or uses inconsistent control accounts.
+- Customer receipt: Debit Bank/Cash; Credit Accounts Receivable.
+- Supplier payment: Debit Accounts Payable; Credit Bank/Cash.
+- Posting the settlement and updating document balances happen in one database transaction.
+
+### Bank reconciliation
+- Bank accounts map to active posting asset accounts in the general ledger.
+- Reconciliation stores statement opening/closing balances, calculated book closing, difference, statement rows and matched journal references.
+- Each statement row must be matched to a posted journal with the same bank account, date window, amount and direction.
+- Finalization is blocked unless the calculated difference is zero and all entered statement rows are matched.
+- Bank statement imports and bank feed integrations are later adapters; manual statement-line entry is the initial workflow.
+
+### New database relations
+- finance_documents 1—N finance_document_lines
+- finance_documents 1—N finance_settlement_allocations
+- finance_settlements 1—N finance_settlement_allocations
+- finance_documents N—1 parties, control accounts, business units, projects and generated journals
+- finance_settlements N—1 parties, bank accounts and generated journals
+- finance_bank_reconciliations 1—N finance_bank_statement_lines
+- finance_bank_statement_lines N—0..1 matched finance_journals
+- Every new record is organization-scoped and audit logged.
+
+### New reports and controls
+- AR aging and AP aging (not due, 1–30, 31–60, 61–90, over 90 days)
+- Open invoice/bill register, paid/part-paid balance and counterparty exposure
+- Receipt/payment register and settlement allocation detail
+- Bank reconciliation register, unmatched statement rows and reconciliation difference
+- All subledger documents must drill through to the generated GL journal.
+
+### Delivery status
+- Phase 1 foundation: COA, journal workflow, core ledger reports and accounting periods.
+- Phase 2 implementation branch: AR/AP documents, automatic GL posting, partial settlement, cash/bank register and bank reconciliation statement matching.
+- Migration 009 is additive and has been validated on an isolated Neon branch. It is not applied to Production until PR checks and controlled end-to-end validation pass.
