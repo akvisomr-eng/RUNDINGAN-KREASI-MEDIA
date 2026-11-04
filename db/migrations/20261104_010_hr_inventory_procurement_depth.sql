@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS hr_payroll_line_components (
 ALTER TABLE hr_payroll_runs
   ADD COLUMN IF NOT EXISTS business_unit_id uuid,
   ADD COLUMN IF NOT EXISTS finance_journal_id uuid,
+  ADD COLUMN IF NOT EXISTS payment_journal_id uuid,
   ADD COLUMN IF NOT EXISTS payment_reference text,
   ADD COLUMN IF NOT EXISTS paid_by text;
 ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_org_id_uq UNIQUE(organization_id,id);
@@ -111,6 +112,21 @@ ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_business_unit_fk
   FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
 ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_journal_fk
   FOREIGN KEY(organization_id,finance_journal_id) REFERENCES finance_journals(organization_id,id);
+ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_payment_journal_fk
+  FOREIGN KEY(organization_id,payment_journal_id) REFERENCES finance_journals(organization_id,id);
+CREATE TABLE IF NOT EXISTS hr_payroll_settings (
+  organization_id uuid PRIMARY KEY REFERENCES organizations(id),
+  salary_expense_account_id uuid NOT NULL,
+  payroll_payable_account_id uuid NOT NULL,
+  deduction_payable_account_id uuid,
+  bank_account_id uuid,
+  updated_by text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY(organization_id,salary_expense_account_id) REFERENCES finance_accounts(organization_id,id),
+  FOREIGN KEY(organization_id,payroll_payable_account_id) REFERENCES finance_accounts(organization_id,id),
+  FOREIGN KEY(organization_id,deduction_payable_account_id) REFERENCES finance_accounts(organization_id,id),
+  FOREIGN KEY(organization_id,bank_account_id) REFERENCES finance_bank_accounts(organization_id,id)
+);
 
 CREATE TABLE IF NOT EXISTS inventory_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -153,6 +169,13 @@ ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_business_unit
   FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
 ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_journal_fk
   FOREIGN KEY(organization_id,finance_journal_id) REFERENCES finance_journals(organization_id,id);
+CREATE TABLE IF NOT EXISTS inventory_finance_settings (
+  organization_id uuid PRIMARY KEY REFERENCES organizations(id),
+  inventory_clearing_account_id uuid NOT NULL,
+  updated_by text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY(organization_id,inventory_clearing_account_id) REFERENCES finance_accounts(organization_id,id)
+);
 CREATE INDEX IF NOT EXISTS inventory_items_category_idx ON inventory_items(organization_id,category_id,name);
 CREATE INDEX IF NOT EXISTS inventory_movements_location_idx ON inventory_movements(organization_id,location_id,created_at DESC);
 
@@ -290,4 +313,4 @@ INSERT INTO schema_migrations(version,description,applied_at)
 VALUES ('20261104_010_hr_inventory_procurement_depth','Add contracts, attendance, leave, payroll components, inventory account mappings, purchase orders and goods receipts',NOW())
 ON CONFLICT(version) DO NOTHING;
 
-GRANT SELECT,INSERT,UPDATE ON TABLE hr_employee_contracts,hr_attendance_records,hr_leave_requests,hr_payroll_components,hr_payroll_line_components,inventory_categories,procurement_request_lines,purchase_orders,purchase_order_lines,goods_receipts,goods_receipt_lines TO rundingan_app_limited;
+GRANT SELECT,INSERT,UPDATE ON TABLE hr_employee_contracts,hr_attendance_records,hr_leave_requests,hr_payroll_components,hr_payroll_line_components,hr_payroll_settings,inventory_categories,inventory_finance_settings,procurement_request_lines,purchase_orders,purchase_order_lines,goods_receipts,goods_receipt_lines TO rundingan_app_limited;
