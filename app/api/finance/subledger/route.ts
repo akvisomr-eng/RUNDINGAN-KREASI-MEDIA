@@ -58,6 +58,24 @@ export async function GET(req:Request){
    const settlements=await db`SELECT id,settlement_type,settlement_number,settlement_date,party_id,amount,currency,status,journal_id FROM finance_settlements WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY settlement_date DESC LIMIT 200`;
    return NextResponse.json({documents:docs,settlements});
   }
+  if(view==='party-statement'){
+   const partyId=url.searchParams.get('party_id')||'',docType=url.searchParams.get('type')||'sales_invoice',isAR=docType==='sales_invoice';
+   if(!isAR&&docType!=='purchase_bill')return fail('Jenis statement tidak valid.');
+   if(!(await hasPermission(u.id,isAR?'finance.ar.read':'finance.ap.read')))return fail('Forbidden',403);
+   if(!partyId||!dateOk(url.searchParams.get('start')||'')||!dateOk(url.searchParams.get('end')||''))return fail('Pihak dan rentang tanggal wajib diisi.');
+   const start=url.searchParams.get('start')!,end=url.searchParams.get('end')!;
+   if(end<start)return fail('Rentang tanggal tidak valid.');
+   const rows=await db`WITH movements AS (
+    SELECT d.document_date transaction_date,d.document_number reference_no,CASE WHEN d.document_type='sales_invoice' THEN 'Invoice' ELSE 'Tagihan' END description,d.total_amount debit,0::numeric credit
+    FROM finance_documents d WHERE d.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND d.party_id=${partyId}::uuid AND d.document_type=${docType} AND d.status IN ('posted','part_paid','paid') AND d.document_date BETWEEN ${start}::date AND ${end}::date
+    UNION ALL
+    SELECT s.settlement_date,s.settlement_number,CASE WHEN s.settlement_type='customer_receipt' THEN 'Penerimaan' ELSE 'Pembayaran' END,0::numeric,a.amount
+    FROM finance_settlement_allocations a JOIN finance_settlements s ON s.id=a.settlement_id AND s.organization_id=a.organization_id JOIN finance_documents d ON d.id=a.document_id AND d.organization_id=a.organization_id
+    WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND d.party_id=${partyId}::uuid AND d.document_type=${docType} AND s.status='posted' AND s.settlement_date BETWEEN ${start}::date AND ${end}::date
+   )
+   SELECT *,sum(debit-credit) OVER(ORDER BY transaction_date,reference_no ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::numeric(18,2) running_balance FROM movements ORDER BY transaction_date,reference_no`;
+   return NextResponse.json({rows,party_id:partyId,type:docType,start,end});
+  }
   if(view==='cash-bank'){
    if(!(await hasPermission(u.id,'finance.cash.read')))return fail('Forbidden',403);
    const [banks,reconciliations,settlements,statementLines]=await Promise.all([
