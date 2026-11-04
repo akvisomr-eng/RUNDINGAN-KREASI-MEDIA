@@ -332,6 +332,21 @@ export async function POST(req:Request){
    });
    return NextResponse.json({journal:row});
   }
+  if(['create-tax-code','update-tax-code','deactivate-tax-code'].includes(action)){
+   if(!(await allowed(u.id,'finance.tax.manage')))return fail('Forbidden',403);
+   const id=str(b.id,80),code=str(b.code,40),name=str(b.name,160),type=str(b.tax_type,30),rate=num(b.rate),account=str(b.tax_account_id,80)||null,start=str(b.effective_from,10)||null,end=str(b.effective_to,10)||null;
+   if(action!=='deactivate-tax-code'&&(!code||!name||!['vat_in','vat_out','withholding','income_tax','other'].includes(type)||!Number.isFinite(rate)||rate<0||rate>100||(start&&!validDate(start))||(end&&!validDate(end))||(start&&end&&end<start)))return fail('Data kode pajak tidak valid.');
+   const result=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    if(action==='deactivate-tax-code')return tx`UPDATE finance_tax_codes SET is_active=false WHERE id=${id}::uuid AND organization_id=${oid} RETURNING id,code,name`;
+    if(account){const a=await tx`SELECT id,account_type,is_active,is_postable FROM finance_accounts WHERE id=${account}::uuid AND organization_id=${oid}`;const expected=type==='vat_out'?'liability':type==='vat_in'?'asset':null;if(!a.length||!a[0].is_active||!a[0].is_postable||(expected&&a[0].account_type!==expected))throw new Error('Akun pajak harus aktif dan dapat diposting; PPN keluaran memakai liabilitas, PPN masukan memakai aset.');}
+    if(rate>0&&!account)throw new Error('Kode pajak dengan tarif di atas nol wajib memiliki akun pajak.');
+    if(action==='update-tax-code')return tx`UPDATE finance_tax_codes SET code=${code},name=${name},tax_type=${type},rate=${rate},tax_account_id=${account}::uuid,effective_from=${start}::date,effective_to=${end}::date,is_active=${b.is_active!==false} WHERE id=${id}::uuid AND organization_id=${oid} RETURNING id,code,name,tax_type,rate,is_active`;
+    return tx`INSERT INTO finance_tax_codes(organization_id,code,name,tax_type,rate,tax_account_id,effective_from,effective_to) VALUES(${oid},${code},${name},${type},${rate},${account}::uuid,${start}::date,${end}::date) RETURNING id,code,name,tax_type,rate,is_active`;
+   });
+   if(!result.length)return fail('Kode pajak tidak ditemukan.',404);
+   await audit(db,u.id,action,'finance_tax_code',result[0].id,result[0]);return NextResponse.json({taxCode:result[0]},{status:action==='create-tax-code'?201:200});
+  }
   if(action==='create-period'){
    if(!(await allowed(u.id,'finance.periods.manage')))return fail('Forbidden',403);
    const year=num(b.fiscal_year),n=num(b.period_number),name=str(b.name,80),start=str(b.start_date,10),end=str(b.end_date,10);
