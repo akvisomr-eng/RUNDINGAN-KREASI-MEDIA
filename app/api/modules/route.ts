@@ -34,12 +34,12 @@ export async function POST(req:Request) {
   let body:Record<string,unknown>;try{body=await req.json();}catch{return error('Invalid JSON body.');}
   const code=typeof body.code==='string'?body.code.toUpperCase():'';
   const action=body.action;
-  if(code!=='RENTAL')return error('Hanya plugin opsional RENTAL yang dapat dipasang/dinonaktifkan dari katalog ini. Modul inti tidak dapat dinonaktifkan.',409);
+  const plugin=await getSql()\`SELECT code FROM module_catalog WHERE code=\${code} AND is_optional=true\`;\n  if(!plugin.length)return error('Modul ini bukan plugin opsional yang dapat dipasang/dinonaktifkan.',409);
   if(action!=='install'&&action!=='disable')return error('Aksi plugin tidak dikenal.');
   const sql:any=getSql();
   const rows=action==='install'
     ? await sql`INSERT INTO organization_modules(organization_id,module_code,status,installed_by,updated_at)
-        SELECT id,'RENTAL','active',${data.user.id},NOW() FROM organizations WHERE slug=${ORG}
+        SELECT id,\${code},'active',${data.user.id},NOW() FROM organizations WHERE slug=${ORG}
         ON CONFLICT(organization_id,module_code) DO UPDATE SET status='active',installed_by=EXCLUDED.installed_by,updated_at=NOW()
         RETURNING module_code,status`
     : await sql`UPDATE organization_modules m SET status='inactive',updated_at=NOW()
