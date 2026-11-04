@@ -26,7 +26,7 @@ export async function GET(req:Request){
  try{
   if(view==='overview'){
    if(!(await allowed(u.id,'finance.accounts.read')))return fail('Forbidden',403);
-   const [accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,metrics]=await Promise.all([
+   const [accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics]=await Promise.all([
     db`SELECT a.id,a.code,a.name,a.account_type,a.normal_balance,a.parent_account_id,a.account_group,a.description,a.is_postable,a.is_active,a.cash_flow_category,a.default_tax_code,a.display_order, p.code AS parent_code,p.name AS parent_name FROM finance_accounts a LEFT JOIN finance_accounts p ON p.id=a.parent_account_id AND p.organization_id=a.organization_id WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY a.code`,
     db`SELECT j.id,j.journal_number,j.journal_date,j.document_date,j.reference_no,j.description,j.journal_type,j.source_module_code,j.status,j.created_at,j.business_transaction_id,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(l.id)::int line_count FROM finance_journals j LEFT JOIN finance_journal_lines l ON l.journal_id=j.id JOIN organizations o ON o.id=j.organization_id WHERE o.slug=${ORG} GROUP BY j.id ORDER BY j.journal_date DESC,j.created_at DESC LIMIT 300`,
     db`SELECT id,fiscal_year,period_number,name,start_date,end_date,status,closed_at FROM finance_periods WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY start_date DESC LIMIT 50`,
@@ -34,6 +34,8 @@ export async function GET(req:Request){
     db`SELECT id,code,name,module_code,business_unit_id,budget_amount,status FROM finance_projects WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,code,name,tax_type,rate,is_active FROM finance_tax_codes WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,bank_name,account_name,account_number_masked,currency,account_id,is_active FROM finance_bank_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY bank_name`,
+    db`SELECT id,code,name FROM business_units WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY code`,
+    db`SELECT id,party_type,display_name,legal_name FROM parties WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY display_name LIMIT 500`,
     db`SELECT
       (SELECT count(*)::int FROM finance_journals j WHERE j.organization_id=o.id) journals_total,
       (SELECT count(*)::int FROM finance_journals j WHERE j.organization_id=o.id AND j.status='draft') journals_draft,
@@ -43,7 +45,7 @@ export async function GET(req:Request){
       (SELECT count(*)::int FROM finance_periods p WHERE p.organization_id=o.id AND p.status='open') open_periods
       FROM organizations o WHERE o.slug=${ORG}`
    ]);
-   return NextResponse.json({accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,metrics:metrics[0]||{}});
+   return NextResponse.json({accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics:metrics[0]||{}});
   }
   if(!(await allowed(u.id,'finance.reports.read')))return fail('Forbidden',403);
   if(!validDate(start)||!validDate(end)||end<start)return fail('Rentang tanggal laporan tidak valid.');
@@ -66,6 +68,8 @@ export async function GET(req:Request){
       AND (${costCenter}='' OR l.cost_center_id=${costCenter}::uuid)
     WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
       AND a.is_active=true AND (${accountId}='' OR a.id=${accountId}::uuid)
+      AND (${view}<>'profit-loss' OR a.account_type IN ('revenue','expense'))
+      AND (${view}<>'balance-sheet' OR a.account_type IN ('asset','liability','equity'))
     GROUP BY a.id
    )
    SELECT *, (closing_debit-closing_credit)::numeric(18,2) closing_net,
@@ -170,9 +174,10 @@ export async function POST(req:Request){
    if(!(await allowed(u.id,permission)))return fail('Forbidden',403);
    const id=str(b.id,80);
    const row=await db.begin(async(tx:any)=>{
-    const current=await tx`SELECT j.id,j.status,j.journal_number,j.organization_id,j.journal_date,p.status period_status,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(l.id)::int lines FROM finance_journals j LEFT JOIN finance_journal_lines l ON l.journal_id=j.id LEFT JOIN finance_periods p ON p.id=j.period_id WHERE j.id=${id}::uuid AND j.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) GROUP BY j.id,p.status FOR UPDATE`;
+    const current=await tx`SELECT j.id,j.status,j.journal_number,j.organization_id,j.journal_date,p.status period_status FROM finance_journals j LEFT JOIN finance_periods p ON p.id=j.period_id WHERE j.id=${id}::uuid AND j.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) FOR UPDATE OF j`;
     if(!current.length)throw new Error('Jurnal tidak ditemukan.');
-    const j=current[0],balanced=Number(j.debit)>0&&Number(j.debit)===Number(j.credit)&&Number(j.lines)>=2;
+    const totals=await tx`SELECT coalesce(sum(debit),0)::numeric(18,2) debit,coalesce(sum(credit),0)::numeric(18,2) credit,count(*)::int lines FROM finance_journal_lines WHERE journal_id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+    const j={...current[0],...totals[0]},balanced=Number(j.debit)>0&&Number(j.debit)===Number(j.credit)&&Number(j.lines)>=2;
     if(!balanced)throw new Error('Jurnal belum seimbang atau belum memiliki minimal dua baris.');
     if(j.period_status==='closed')throw new Error('Periode sudah ditutup.');
     let next='';
