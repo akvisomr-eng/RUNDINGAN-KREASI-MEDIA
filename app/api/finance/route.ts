@@ -115,6 +115,13 @@ export async function GET(req:Request){
    }
    return NextResponse.json({rows,view,start,end});
   }
+  if(view==='tax-summary'){
+   const taxSummary=await db`SELECT l.tax_code,j.source_module_code,a.account_type,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(DISTINCT j.id)::int journal_count
+    FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id JOIN finance_accounts a ON a.id=l.account_id AND a.organization_id=l.organization_id
+    WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND j.status='posted' AND j.journal_date BETWEEN ${start}::date AND ${end}::date AND l.tax_code IS NOT NULL
+    AND (${module}='' OR j.source_module_code=${module}) GROUP BY l.tax_code,j.source_module_code,a.account_type ORDER BY l.tax_code,j.source_module_code`;
+   return NextResponse.json({rows:taxSummary,view,start,end});
+  }
   if(view==='integrity'){
    const [unbalanced,closedPeriod,orphan]=await Promise.all([
     db`SELECT j.id,j.journal_number,j.journal_date,j.status,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(l.id)::int line_count FROM finance_journals j LEFT JOIN finance_journal_lines l ON l.journal_id=j.id WHERE j.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) GROUP BY j.id HAVING j.status='posted' AND (coalesce(sum(l.debit),0)<>coalesce(sum(l.credit),0) OR count(l.id)<2) ORDER BY j.journal_date DESC`,
