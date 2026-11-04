@@ -27,7 +27,7 @@ The first operational layer for ACADEMY, CREATIVE, EVENT, MEDIA and PRODUCTION u
 - Media: content format, distribution channel, editorial stage and rights status
 - Production: production type, shoot location, crew lead and delivery format
 
-The first release intentionally provides a shared work-item workflow rather than claiming complete LMS, DAM, event ticketing, editorial publishing or production scheduling suites. Module records are available in the printable Report Center and the shared transaction spine so specialist agents can monitor them. No payment, publication, stock movement or irreversible business action is performed by these workspaces.
+The first release intentionally provides a shared work-item workflow rather than claiming complete LMS, DAM, event ticketing, editorial publishing or production scheduling suites. Module records are available in the printable Report Center and the shared transaction spine so specialist agents can monitor them. The `budget_amount` field is a planning estimate only and is excluded from posted accounting balances until a reviewed finance workflow creates a balanced journal. No payment, publication, stock movement or irreversible business action is performed by these workspaces.
 
 ## Reports
 
