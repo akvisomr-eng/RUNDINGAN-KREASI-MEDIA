@@ -148,3 +148,6 @@ a.enterprise-area:hover{background:#e8e9df;border-color:#9ba88e}
 .agent-finding-list strong{font-size:9px}
 @media(max-width:850px){.plugin-grid,.agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.plugin-grid,.agent-grid{grid-template-columns:1fr}}
+
+.crm-quick-links{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.crm-quick-links a{font-size:10px;color:#536a3d;border-bottom:1px solid #a8b39b;padding-bottom:4px}
+.cms-user{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.cms-user a{font-size:10px;color:#536a3d;border-bottom:1px solid #a8b39b;padding-bottom:4px}
