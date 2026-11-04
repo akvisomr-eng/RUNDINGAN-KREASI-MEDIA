@@ -13,14 +13,15 @@ export async function GET(){
  const {data}=await auth.getSession();if(!data?.user)return fail('Unauthorized',401);
  if(!(await hasPermission(data.user.id,'agents.read')))return fail('Forbidden',403);
  const sql:any=getSql();
- const [runs,actions]=await Promise.all([
+ const [runs,actions,activeModules]=await Promise.all([
   sql`SELECT id,agent_code,runtime,status,input,result,created_at,finished_at FROM agent_runs
       WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY created_at DESC LIMIT 30`,
   sql`SELECT id,agent_run_id,action_type,target_table,target_id,payload,risk_level,status,created_at
       FROM agent_actions WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
       AND status='pending_approval' ORDER BY created_at DESC LIMIT 30`
  ]);
- return NextResponse.json({agents:AGENTS,runs,actions});
+ const enabled=new Set((activeModules as any[]).map(x=>String(x.module_code)));
+ return NextResponse.json({agents:AGENTS.filter(a=>a.code!=='rental-operations'||enabled.has('RENTAL')),runs,actions});
 }
 
 export async function POST(req:Request){
@@ -39,7 +40,7 @@ export async function POST(req:Request){
  const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
  const recommendations:string[]=[];
  try{
-  const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION'};
+  const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION','rental-operations':'RENTAL'};
   if(moduleCode[code]){
    const codeValue=moduleCode[code];
    const [statusRows,stale,unlinked]=await Promise.all([
