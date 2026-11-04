@@ -24,6 +24,6 @@ export default async function EnterpriseModulePage({params}:{params:Promise<{mod
   if(!allowed) {
     return <main className="workspace-shell"><section className="ops-content"><p className="auth-eyebrow">403 / AKSES TERBATAS</p><h1>Akses modul tidak tersedia.</h1><p>Hubungi Owner atau administrator untuk mendapatkan izin yang sesuai.</p><a className="workspace-link" href="/workspace/enterprise">Kembali ke administrasi ↗</a></section></main>;
   }
-  const canManage=await hasPermission(data.user.id,config.manage);
+  const canManage=module==='structure' ? await Promise.all(['core.business_units.manage','core.departments.manage','core.locations.manage'].map(p=>hasPermission(data.user.id,p))).then(x=>x.some(Boolean)) : await hasPermission(data.user.id,config.manage);
   return <OperationsWorkspace module={module} canManage={canManage}/>;
 }
