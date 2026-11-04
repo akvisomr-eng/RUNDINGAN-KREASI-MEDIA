@@ -30,6 +30,7 @@ The current agent runtime is a deterministic local expert system embedded in the
 - Inventory stock thresholds and aged procurement
 - CRM contact completeness
 - CMS draft age and SEO metadata
+- ACADEMY, CREATIVE, EVENT, MEDIA and PRODUCTION transaction monitoring; RENTAL monitoring becomes available only after its optional plugin is installed
 - Application database/schema health
 
 The embedded rules are always available without an external API. An optional Ollama adapter can add generative analysis when LOCAL_LLM_BASE_URL points to a private/local Ollama host and LOCAL_LLM_MODEL is configured (example: qwen2.5:1.5b). The adapter rejects public hosts and only sends diagnostic findings, not raw customer records. For truly local inference on a customer's PC, the application server and Ollama must run on that PC or the same private network. A Vercel deployment's localhost refers to the Vercel runtime, not the end user's computer; therefore Preview/Production remain on embedded rules unless a private local inference host is deliberately configured and reachable.
