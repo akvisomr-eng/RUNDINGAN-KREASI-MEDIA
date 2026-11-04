@@ -30,7 +30,7 @@ export async function POST(req:Request){
  let body:Record<string,unknown>;try{body=await req.json();}catch{return fail('Invalid JSON body.');}
  const code=typeof body.agent_code==='string'?body.agent_code:'';
  const agent=AGENTS.find(x=>x.code===code);if(!agent)return fail('Agen tidak dikenal.');
- const sql=getSql();
+ const sql:any=getSql();
  const created=await sql`INSERT INTO agent_runs(organization_id,agent_code,runtime,status,input,created_by)
    SELECT id,${code},'embedded_rules','running',${JSON.stringify({trigger:'manual'})}::jsonb,${data.user.id}
    FROM organizations WHERE slug=${ORG} RETURNING id`;
