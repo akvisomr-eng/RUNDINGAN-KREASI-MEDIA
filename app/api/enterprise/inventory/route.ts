@@ -52,7 +52,7 @@ export async function POST(req:Request){
   if(action==='item_status'){
    if(!(await hasPermission(user.id,'inventory.items.manage')))return fail('Forbidden',403);
    const id=str(b,'item_id',80),active=b.is_active===true;
-   const rows=await db`UPDATE inventory_items i SET is_active=${active},updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid AND (${active}=true OR NOT EXISTS(SELECT 1 FROM inventory_movements m WHERE m.organization_id=o.id AND m.item_id=i.id)) RETURNING i.id,i.sku,i.is_active`;
+   const rows=await db`UPDATE inventory_items i SET is_active=${active},updated_at=NOW() FROM organizations o WHERE i.organization_id=o.id AND o.slug=${ORG} AND i.id=${id}::uuid RETURNING i.id,i.sku,i.is_active`;
    if(!rows.length)return fail('Barang tidak ditemukan atau sudah memiliki riwayat stok; gunakan status nonaktif melalui prosedur pengendalian.',409);await audit(db,user.id,'update_status','inventory_item',id,{is_active:active});return NextResponse.json({item:rows[0]});
   }
   if(action==='request_with_lines'){
@@ -89,7 +89,7 @@ export async function POST(req:Request){
     let total=0;
     for(const line of parsed){if(line.item_id){const it=await tx`SELECT id FROM inventory_items WHERE id=${line.item_id}::uuid AND organization_id=${org[0].id} AND is_active`;if(!it.length)throw new Error('Item PO tidak valid.');}
      await tx`INSERT INTO purchase_order_lines(organization_id,purchase_order_id,item_id,description,quantity,unit_price) VALUES(${org[0].id},${header[0].id},${line.item_id||null}::uuid,${line.description},${line.quantity},${line.price})`;total+=line.quantity*line.price;}
-    const bt=await tx`INSERT INTO business_transactions(organization_id,module_code,transaction_type,reference_no,description,party_id,transaction_date,status,amount,source_table,source_id,created_by) VALUES(${org[0].id},'ENTERPRISE','purchase_order',${no},'Purchase order '+${no},${supplier}::uuid,CURRENT_DATE,'draft',${total},'purchase_orders',${header[0].id}::text,${user.id}) RETURNING id`;
+    const bt=await tx`INSERT INTO business_transactions(organization_id,module_code,transaction_type,reference_no,description,party_id,transaction_date,status,amount,source_table,source_id,created_by) VALUES(${org[0].id},'ENTERPRISE','purchase_order',${no},'Purchase order ' || ${no},${supplier}::uuid,CURRENT_DATE,'draft',${total},'purchase_orders',${header[0].id}::text,${user.id}) RETURNING id`;
     await tx`UPDATE purchase_orders SET business_transaction_id=${bt[0].id} WHERE id=${header[0].id}`;
     return {id:header[0].id,po_number:no,total};
    });
