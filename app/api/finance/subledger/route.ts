@@ -45,7 +45,7 @@ export async function GET(req:Request){
   if(view==='documents'||view==='ar-aging'||view==='ap-aging'){
    const permission=type==='purchase_bill'?'finance.ap.read':'finance.ar.read';
    if(!(await hasPermission(u.id,permission)))return fail('Forbidden',403);
-   const types= view==='ar-aging'?['sales_invoice']:view==='ap-aging'?['purchase_bill']:[type];
+   const types= view==='ar-aging'?['sales_invoice']:view==='ap-aging'?['purchase_bill']:type==='all'?['sales_invoice','purchase_bill']:[type==='purchase_bill'?'purchase_bill':'sales_invoice'];
    const docs=await db`SELECT d.id,d.document_type,d.document_number,d.external_reference,d.document_date,d.due_date,d.party_id,p.display_name party_name,d.source_module_code,d.business_unit_id,d.project_id,d.currency,d.subtotal,d.discount_total,d.tax_total,d.total_amount,d.settled_amount,(d.total_amount-d.settled_amount)::numeric(18,2) outstanding,d.status,d.journal_id,d.created_at
     FROM finance_documents d JOIN parties p ON p.id=d.party_id AND p.organization_id=d.organization_id
     WHERE d.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND d.document_type=ANY(${types}::text[])
@@ -132,7 +132,7 @@ export async function POST(req:Request){
      for(const l of lines){const key=l.account_id;const g=grouped.get(key)||{net:0,debit:0,credit:0,desc:l.description,costCenter:l.cost_center_id,project:l.project_id,taxCode:l.tax_code};if(isAR)g.credit=round(g.credit+Number(l.tax_base));else g.debit=round(g.debit+Number(l.tax_base));grouped.set(key,g);}
      const journalLines:any[]=[];
      journalLines.push({account:d.receivable_payable_account_id,description:isAR?'Piutang pelanggan':'Utang pemasok',debit:isAR?Number(d.total_amount):0,credit:isAR?0:Number(d.total_amount)});
-     for(const g of grouped.values())journalLines.push({account:[...grouped.entries()].find(([,v])=>v===g)?.[0],description:g.desc,debit:g.debit,credit:g.credit});
+     for(const [account,g] of grouped.entries())journalLines.push({account,description:g.desc,debit:g.debit,credit:g.credit});
      const taxGroups=new Map<string,{amount:number;code:string}>();
      for(const l of lines){if(Number(l.tax_amount)>0){if(!l.tax_account_id)throw new Error('Akun pajak tidak dikonfigurasi.');const k=l.tax_account_id;const g=taxGroups.get(k)||{amount:0,code:l.tax_code||'TAX'};g.amount=round(g.amount+Number(l.tax_amount));taxGroups.set(k,g);}}
      for(const [account,g] of taxGroups)journalLines.push({account,description:'Pajak '+g.code,debit:isAR?0:g.amount,credit:isAR?g.amount:0,taxCode:g.code});
