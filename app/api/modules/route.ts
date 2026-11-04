@@ -15,11 +15,12 @@ export async function GET() {
   const rows=await sql`
     SELECT c.code,c.name,c.description,c.is_optional,c.default_enabled,
       coalesce(m.status,CASE WHEN c.default_enabled THEN 'active' ELSE 'inactive' END) AS status,
-      (m.module_code IS NOT NULL) AS installed,m.installed_at,m.updated_at
+      (m.module_code IS NOT NULL AND (m.status='active' OR NOT c.is_optional)) AS installed,m.installed_at,m.updated_at
     FROM module_catalog c
     JOIN organizations o ON o.slug=${ORG}
     LEFT JOIN organization_modules m ON m.organization_id=o.id AND m.module_code=c.code
-    WHERE c.code <> 'ENTERPRISE'\n    ORDER BY c.default_enabled DESC,c.code
+    WHERE c.code <> 'ENTERPRISE'
+    ORDER BY c.default_enabled DESC,c.code
   `;
   return NextResponse.json({modules:rows});
 }
