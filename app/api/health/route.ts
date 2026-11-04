@@ -21,12 +21,13 @@ const requiredMigrations = [
 
 export async function GET() {
   const timestamp = new Date().toISOString();
-  const sql:any = getSql();
+  let sql:any;
 
   // Keep database connectivity separate from schema-metadata authorization.
   // A restricted runtime role can reach Postgres while still lacking access to
   // schema_migrations; that is a schema-readiness issue, not a database outage.
   try {
+    sql = getSql();
     await sql`SELECT 1`;
   } catch {
     return NextResponse.json({
