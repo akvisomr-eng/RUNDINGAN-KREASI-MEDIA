@@ -58,7 +58,7 @@ export default async function EnterpriseCorePage() {
         <section className="workspace-content">
           <p className="auth-eyebrow">CORE / ORGANIZATION NOT FOUND</p>
           <h1>Profil organisasi belum tersedia.</h1>
-          <p>Data organisasi tidak ditemukan pada database Development.</p>
+          <p>Data organisasi tidak ditemukan pada database aktif.</p>
           <Link className="workspace-link" href="/workspace">Kembali ke workspace ↗</Link>
         </section>
       </main>
@@ -110,7 +110,7 @@ export default async function EnterpriseCorePage() {
 
         <div className="enterprise-section-head">
           <div><p className="auth-eyebrow">LIVE DATABASE SNAPSHOT</p><h2>Ringkasan organisasi</h2></div>
-          <span>DEVELOPMENT ENVIRONMENT</span>
+          <span>ACTIVE ENVIRONMENT</span>
         </div>
         <div className="enterprise-metrics">
           {metrics.map((metric) => (
