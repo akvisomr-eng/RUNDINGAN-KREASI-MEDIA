@@ -216,8 +216,12 @@ export async function POST(req:Request){
    if(!bank||!dateOk(start)||!dateOk(end)||end<start||!Number.isFinite(opening)||!Number.isFinite(closing))return fail('Header rekonsiliasi tidak valid.');
    const result=await db.begin(async(tx:any)=>{
     const oid=await orgId(tx),ba=await tx`SELECT id,account_id FROM finance_bank_accounts WHERE id=${bank}::uuid AND organization_id=${oid} AND is_active`;if(!ba.length)throw new Error('Rekening bank tidak valid.');
-    const movements=await tx`SELECT coalesce(sum(l.debit-l.credit),0)::numeric(18,2) movement FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id WHERE l.organization_id=${oid} AND l.account_id=${ba[0].account_id} AND j.status='posted' AND j.journal_date BETWEEN ${start}::date AND ${end}::date`;
-    const book=round(opening+Number(movements[0].movement)),difference=round(closing-book);
+    const balances=await tx`SELECT
+     coalesce(sum(l.debit-l.credit) FILTER(WHERE j.journal_date<${start}::date),0)::numeric(18,2) opening_balance,
+     coalesce(sum(l.debit-l.credit) FILTER(WHERE j.journal_date BETWEEN ${start}::date AND ${end}::date),0)::numeric(18,2) period_movement
+     FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id
+     WHERE l.organization_id=${oid} AND l.account_id=${ba[0].account_id} AND j.status='posted' AND j.journal_date<=${end}::date`;
+    const book=round(Number(balances[0].opening_balance)+Number(balances[0].period_movement)),difference=round(closing-book);
     const h=await tx`INSERT INTO finance_bank_reconciliations(organization_id,bank_account_id,statement_start,statement_end,statement_opening,statement_closing,book_closing,difference,status,notes,created_by)
      VALUES(${oid},${bank}::uuid,${start}::date,${end}::date,${opening},${closing},${book},${difference},'draft',${s(b.notes,1000)||null},${u.id}) RETURNING id,status,book_closing,difference`;
     for(const l of items){const d=s(l.transaction_date,10),debit=round(n(l.debit)),credit=round(n(l.credit));if(!dateOk(d)||d<start||d>end||((debit>0)===(credit>0)))throw new Error('Baris mutasi bank tidak valid.');await tx`INSERT INTO finance_bank_statement_lines(organization_id,bank_account_id,reconciliation_id,transaction_date,value_date,reference_no,description,debit,credit) VALUES(${oid},${bank}::uuid,${h[0].id},${d}::date,${dateOk(s(l.value_date,10))?s(l.value_date,10):null}::date,${s(l.reference_no,100)||null},${s(l.description,500)||null},${debit},${credit})`;}
