@@ -119,6 +119,17 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     const rows=await db`INSERT INTO finance_accounts(organization_id,code,name,account_type,normal_balance) SELECT id,${code},${name},${type},${normal} FROM organizations WHERE slug=${ORG} RETURNING id,code,name,account_type,normal_balance,is_active`;
     await audit(db,u.id,'create','finance_account',String((rows[0] as {id:string}).id),{code,name,type});return NextResponse.json({account:rows[0]},{status:201});
    }
+   if(s(b,'action')==='post_journal'){
+    if(!(await hasPermission(u.id,'finance.journals.create')))return err('Forbidden',403);
+    const id=s(b,'journal_id',80);
+    const rows=await db`UPDATE finance_journals j SET status='posted',posted_by=${u.id},posted_at=NOW()
+      FROM organizations o WHERE j.organization_id=o.id AND o.slug=${ORG} AND j.id=${id}::uuid AND j.status='draft'
+      AND (SELECT count(*) FROM finance_journal_lines l WHERE l.journal_id=j.id)>=2
+      AND (SELECT coalesce(sum(l.debit),0)=coalesce(sum(l.credit),0) AND sum(l.debit)>0 FROM finance_journal_lines l WHERE l.journal_id=j.id)
+      RETURNING j.id,j.journal_number,j.status,j.posted_at`;
+    if(!rows.length)return err('Jurnal tidak dapat diposting: pastikan masih draft dan debit-kredit seimbang.',409);
+    await audit(db,u.id,'post','finance_journal',id,{status:'posted'});return NextResponse.json({journal:rows[0]});
+   }
    if(s(b,'action')==='journal'){
     if(!(await hasPermission(u.id,'finance.journals.create')))return err('Forbidden',403);
     const date=s(b,'journal_date',10),desc=s(b,'description',500),lines=Array.isArray(b.lines)?b.lines as Array<Record<string,unknown>>:[];
@@ -138,6 +149,17 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     if(!code||!name||!start||!Number.isFinite(salary)||salary<0||!['permanent','contract','intern','freelance'].includes(type))return err('Data pegawai tidak valid.');
     const rows=await db`INSERT INTO hr_employees(organization_id,employee_code,full_name,email,phone,department_id,employment_type,start_date,base_salary,created_by) SELECT o.id,${code},${name},${s(b,'email',254)||null},${s(b,'phone',40)||null},${dept}::uuid,${type},${start}::date,${salary},${u.id} FROM organizations o WHERE o.slug=${ORG} AND (${dept}::uuid IS NULL OR EXISTS(SELECT 1 FROM departments d WHERE d.id=${dept}::uuid AND d.organization_id=o.id AND d.deleted_at IS NULL)) RETURNING id,employee_code,full_name,email,employment_type,start_date,base_salary,status`;
     if(!rows.length)return err('Departemen tidak valid.',409);await audit(db,u.id,'create','hr_employee',String((rows[0] as {id:string}).id),{employee_code:code,full_name:name});return NextResponse.json({employee:rows[0]},{status:201});
+   }
+   if(s(b,'action')==='payroll_status'){
+    if(!(await hasPermission(u.id,'hr.payroll.manage')))return err('Forbidden',403);
+    const id=s(b,'payroll_id',80),next=s(b,'status',20);
+    if(!['approved','paid','void'].includes(next))return err('Status payroll tidak valid.');
+    const rows=await db`UPDATE hr_payroll_runs r SET status=${next},approved_by=CASE WHEN ${next}='approved' THEN ${u.id} ELSE approved_by END,paid_at=CASE WHEN ${next}='paid' THEN NOW() ELSE paid_at END
+      FROM organizations o WHERE r.organization_id=o.id AND o.slug=${ORG} AND r.id=${id}::uuid
+      AND ((r.status='draft' AND ${next} IN('approved','void')) OR (r.status='approved' AND ${next} IN('paid','void')))
+      RETURNING r.id,r.period_start,r.period_end,r.status,r.paid_at`;
+    if(!rows.length)return err('Transisi status payroll tidak diizinkan.',409);
+    await audit(db,u.id,'update_status','hr_payroll_run',id,{status:next});return NextResponse.json({payroll:rows[0]});
    }
    if(s(b,'action')==='payroll'){
     if(!(await hasPermission(u.id,'hr.payroll.manage')))return err('Forbidden',403);
@@ -163,6 +185,16 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     if(!item||!['opening','in','out'].includes(type)||!Number.isFinite(qty)||qty<=0||!Number.isFinite(cost)||cost<0)return err('Pergerakan stok tidak valid.');
     const rows=await db`WITH o AS(SELECT id FROM organizations WHERE slug=${ORG}),stock AS(SELECT coalesce(sum(CASE WHEN movement_type IN('opening','in') THEN quantity WHEN movement_type='out' THEN -quantity ELSE 0 END),0) AS qty FROM inventory_movements WHERE item_id=${item}::uuid),i AS(INSERT INTO inventory_movements(organization_id,item_id,location_id,movement_type,quantity,unit_cost,reference,notes,created_by) SELECT o.id,x.id,${loc}::uuid,${type},${qty},${cost},${s(b,'reference',100)||null},${s(b,'notes',300)||null},${u.id} FROM o JOIN inventory_items x ON x.id=${item}::uuid AND x.organization_id=o.id AND x.is_active CROSS JOIN stock st WHERE (${type}<>'out' OR st.qty>=${qty}) AND (${loc}::uuid IS NULL OR EXISTS(SELECT 1 FROM locations l WHERE l.id=${loc}::uuid AND l.organization_id=o.id AND l.deleted_at IS NULL)) RETURNING id,item_id,movement_type,quantity,created_at) SELECT * FROM i`;
     if(!rows.length)return err('Stok tidak cukup atau item/lokasi tidak valid.',409);await audit(db,u.id,'create','inventory_movement',String((rows[0] as {id:string}).id),{item_id:item,type,quantity:qty});return NextResponse.json({movement:rows[0]},{status:201});
+   }
+   if(s(b,'action')==='procurement_status'){
+    if(!(await hasPermission(u.id,'procurement.requests.manage')))return err('Forbidden',403);
+    const id=s(b,'request_id',80),next=s(b,'status',20);
+    const rows=await db`UPDATE procurement_requests p SET status=${next},updated_at=NOW()
+      FROM organizations o WHERE p.organization_id=o.id AND o.slug=${ORG} AND p.id=${id}::uuid
+      AND ((p.status='draft' AND ${next} IN('submitted','cancelled')) OR (p.status='submitted' AND ${next} IN('approved','rejected','cancelled')) OR (p.status='approved' AND ${next}='received'))
+      RETURNING p.id,p.request_number,p.status`;
+    if(!rows.length)return err('Transisi status permintaan tidak diizinkan.',409);
+    await audit(db,u.id,'update_status','procurement_request',id,{status:next});return NextResponse.json({request:rows[0]});
    }
    if(s(b,'action')==='procurement'){
     if(!(await hasPermission(u.id,'procurement.requests.manage')))return err('Forbidden',403);
