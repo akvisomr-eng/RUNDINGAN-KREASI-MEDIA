@@ -121,10 +121,10 @@ export default function CmsWorkspace({
   async function publishPost(id: string, title: string) {
     setBusy(true); setMessage('');
     try {
-      const response = await fetch(\`/api/cms/posts/\${id}/publish\`, { method: 'POST' });
+      const response = await fetch('/api/cms/posts/' + id + '/publish', { method: 'POST' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Artikel gagal dipublikasikan.');
-      setMessage(\`Artikel “\${title}” berhasil dipublikasikan: /artikel/\${data.post.slug}\`);
+      setMessage('Artikel “' + title + '” berhasil dipublikasikan: /artikel/' + data.post.slug);
       await loadPosts();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Publikasi artikel gagal.');
