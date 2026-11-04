@@ -29,14 +29,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   try {
     const sql = getSql();
-    const rows = (await sql\`
+    const rows = (await sql`
       WITH published AS (
         UPDATE cms_posts
         SET status = 'published',
             published_at = COALESCE(published_at, NOW()),
             updated_at = NOW(),
-            updated_by = \${String(user.id)}
-        WHERE id = \${id}::uuid
+            updated_by = ${String(user.id)}
+        WHERE id = ${id}::uuid
           AND status IN ('draft', 'review')
           AND length(trim(title)) >= 3
           AND length(trim(content)) >= 20
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           organization_id, actor_user_id, action, resource_type, resource_id, after_data
         )
         SELECT
-          o.id, \${String(user.id)}, 'publish', 'cms_post', p.id::text,
+          o.id, ${String(user.id)}, 'publish', 'cms_post', p.id::text,
           jsonb_build_object('title', p.title, 'slug', p.slug, 'status', p.status)
         FROM organizations o
         CROSS JOIN published p
@@ -56,7 +56,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       )
       SELECT id, title, slug, status, published_at, updated_at
       FROM published
-    \`) as unknown as Array<Record<string, unknown>>;
+    `) as unknown as Array<Record<string, unknown>>;
 
     if (!rows.length) {
       return NextResponse.json({
