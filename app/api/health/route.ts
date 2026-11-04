@@ -9,6 +9,10 @@ const requiredTables = [
   'hr_payroll_runs','hr_payroll_lines','inventory_items','inventory_movements',
   'procurement_requests','module_catalog','organization_modules','business_transactions','module_work_items',
   'agent_runs','agent_actions',
+  'finance_cost_centers','finance_projects','finance_periods','finance_tax_codes','finance_bank_accounts','finance_bank_reconciliations',
+  'finance_documents','finance_document_lines','finance_settlements','finance_settlement_allocations','finance_bank_statement_lines',
+  'hr_employee_contracts','hr_attendance_records','hr_leave_requests','hr_payroll_components','hr_payroll_line_components','hr_payroll_settings',
+  'inventory_categories','inventory_finance_settings','procurement_request_lines','purchase_orders','purchase_order_lines','goods_receipts','goods_receipt_lines',
 ];
 const requiredMigrations = [
   '20261103_001_custom_cms',
@@ -17,6 +21,9 @@ const requiredMigrations = [
   '20261104_004_unified_modules_agents_reports',
   '20261104_005_enterprise_transaction_module',
   '20261104_006_limited_role_health_read_permissions','20261104_007_module_operational_workspaces',
+  '20261104_008_finance_accounting_foundation',
+  '20261104_009_ar_ap_cash_bank',
+  '20261104_010_hr_inventory_procurement_depth',
 ];
 
 export async function GET() {
