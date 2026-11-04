@@ -121,13 +121,13 @@ export async function POST(req:Request){
    await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data) SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,finding_count:findings.length,runtime})}::jsonb FROM organizations WHERE slug=${ORG}`;
    return NextResponse.json({run_id:runId,...result});
   }else if(code==='system-maintenance'){
-   const required=['organizations','business_units','parties','audit_logs','finance_accounts','finance_journals','hr_employees','inventory_items','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
+   const required=['organizations','business_units','parties','audit_logs','cms_posts','cms_seo_audits','finance_accounts','finance_journals','finance_journal_lines','hr_employees','hr_payroll_runs','hr_payroll_lines','inventory_items','inventory_movements','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
    const tables=await sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`;
    const found=new Set(tables.map((x:any)=>String(x.table_name)));
    const missing=required.filter(x=>!found.has(x));
-   const migration=await sql`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_004_unified_modules_agents_reports') AS applied`;
+   const migration=await sql`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_004_unified_modules_agents_reports') AS unified_applied,EXISTS(SELECT 1 FROM schema_migrations WHERE version='20261104_005_enterprise_transaction_module') AS enterprise_applied`;
    if(missing.length)findings.push({severity:'critical',title:'Skema database belum lengkap',detail:'Tabel wajib tidak ditemukan: '+missing.join(', '),count:missing.length});
-   if(!(migration[0] as {applied:boolean}).applied)findings.push({severity:'warning',title:'Migration registry belum tercatat',detail:'Migration 004 belum tercatat pada schema_migrations.'});
+   if(!(migration[0] as {unified_applied:boolean;enterprise_applied:boolean}).unified_applied||!(migration[0] as {unified_applied:boolean;enterprise_applied:boolean}).enterprise_applied)findings.push({severity:'warning',title:'Migration registry belum lengkap',detail:'Migration 004 atau 005 belum tercatat pada schema_migrations.'});
    if(!findings.length)findings.push({severity:'success',title:'Database dan skema inti terdeteksi',detail:'Koneksi berhasil dan seluruh tabel wajib tersedia.'});
    recommendations.push('Agen hanya melakukan pemeriksaan read-only. Perubahan skema, deployment, dan perbaikan kode harus melalui pull request serta persetujuan Owner.');
   }
