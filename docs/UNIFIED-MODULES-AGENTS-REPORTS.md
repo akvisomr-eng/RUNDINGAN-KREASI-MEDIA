@@ -32,7 +32,7 @@ The current agent runtime is a deterministic local expert system embedded in the
 - CMS draft age and SEO metadata
 - Application database/schema health
 
-This is not an offline generative language model. A future Ollama or other local inference runtime must be separately deployed on a customer-controlled machine/network and security-reviewed before it is enabled.
+The embedded rules are always available without an external API. An optional Ollama adapter can add generative analysis when LOCAL_LLM_BASE_URL points to a private/local Ollama host and LOCAL_LLM_MODEL is configured (example: qwen2.5:1.5b). The adapter rejects public hosts and only sends diagnostic findings, not raw customer records. For truly local inference on a customer's PC, the application server and Ollama must run on that PC or the same private network. A Vercel deployment's localhost refers to the Vercel runtime, not the end user's computer; therefore Preview/Production remain on embedded rules unless a private local inference host is deliberately configured and reachable.
 
 ## Autonomy and safety boundaries
 
@@ -45,7 +45,7 @@ Agents may automatically read, analyze, create diagnostic reports and write audi
 - Change database schema, credentials, permissions or production deployments
 - Rewrite source code or deploy a repair
 
-Those actions require explicit human approval and a reviewed execution workflow. The daily Vercel Cron route performs read-only schema diagnostics. It requires a `CRON_SECRET` environment variable and will not run successfully until that secret is configured in the deployment environment.
+Those actions require explicit human approval and a reviewed execution workflow. The daily Vercel Cron route performs read-only schema and website-readiness diagnostics. It requires a `CRON_SECRET` environment variable and will not run successfully until that secret is configured in the Production deployment environment.
 
 ## Migration and release sequence
 
