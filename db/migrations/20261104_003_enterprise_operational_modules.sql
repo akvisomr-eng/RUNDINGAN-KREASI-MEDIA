@@ -180,3 +180,8 @@ GRANT SELECT, INSERT, UPDATE ON TABLE
   hr_employees,hr_payroll_runs,hr_payroll_lines,
   inventory_items,inventory_movements,procurement_requests
 TO rundingan_app_limited;
+
+GRANT USAGE ON SCHEMA neon_auth TO rundingan_app_limited;
+GRANT SELECT ON TABLE neon_auth.user TO rundingan_app_limited;
+GRANT SELECT, INSERT, UPDATE ON TABLE business_units, departments, locations, user_role_assignments TO rundingan_app_limited;
+GRANT SELECT, INSERT ON TABLE audit_logs TO rundingan_app_limited;
