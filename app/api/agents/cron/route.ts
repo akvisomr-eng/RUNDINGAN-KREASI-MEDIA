@@ -7,7 +7,7 @@ const requiredMigrations=['20261103_001_custom_cms','20261103_002_cms_permission
 export async function GET(req:Request){
  const secret=process.env.CRON_SECRET;
  if(!secret||req.headers.get('authorization')!==`Bearer ${secret}`)return NextResponse.json({error:'Unauthorized cron request.'},{status:401});
- const sql=getSql();
+ const sql:any=getSql();
  const [tables,migrations]=await Promise.all([
   sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`,
   sql`SELECT version FROM schema_migrations`
