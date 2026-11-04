@@ -16,6 +16,7 @@ const requiredMigrations = [
   '20261104_003_enterprise_operational_modules',
   '20261104_004_unified_modules_agents_reports',
   '20261104_005_enterprise_transaction_module',
+  '20261104_006_limited_role_health_read_permissions',
 ];
 
 export async function GET() {
