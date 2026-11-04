@@ -108,10 +108,10 @@ export async function GET(req:Request){
  runs.push(await save('cms-editorial','CMS Editorial Agent',cmsFindings,['Publikasi artikel tetap memerlukan persetujuan editor.']));
 
  // Cross-agent orchestration and risk summary.
- const allFindings=runs.flatMap((run:any)=>(run.findings||[]).map((item:any)=>({agent_code:run.agent?.toLowerCase().replaceAll(' ','-'),...item})));
+ const allFindings=runs.flatMap((run:any)=>(run.findings||[]).map((item:any)=>({agent_code:run.agent?.toLowerCase().replace(/ /g,'-'),...item})));
  const counts={critical:allFindings.filter((x:any)=>x.severity==='critical').length,warning:allFindings.filter((x:any)=>x.severity==='warning').length,info:allFindings.filter((x:any)=>x.severity==='info').length};
  const orchestrationFindings=allFindings.length?allFindings:[{severity:'success',title:'Semua agen spesialis selesai',detail:'Tidak ada temuan yang memerlukan tindakan dari pemeriksaan terjadwal.'}];
  runs.push(await save('enterprise-orchestrator','Enterprise Orchestrator',orchestrationFindings,['Prioritaskan temuan critical, kemudian warning. Tindakan bisnis dan perubahan produksi tetap memerlukan persetujuan Owner.'],{agents_executed:runs.length,risk_summary:counts}));
  const total=runs.reduce((sum:any,run:any)=>sum+Number(run.finding_count||0),0);
- return NextResponse.json({status:'ok',scheduled:true,agent_runs:runs.length,total_findings:total,runs},{status:200});
+ return NextResponse.json({status:counts.critical||counts.warning?'attention_required':'ok',scheduled:true,agent_runs:runs.length,total_findings:total,risk_summary:counts,runs},{status:200});
 }
