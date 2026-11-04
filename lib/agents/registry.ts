@@ -1,5 +1,6 @@
 export type AgentDefinition = { code:string; name:string; domain:string; description:string; cadence:string; capabilities:string[] };
 export const AGENTS:AgentDefinition[] = [
+ {code:'rental-operations',name:'Rental Operations Agent',domain:'Rundingan Rental',description:'Memantau reservasi, status kontrak, transaksi rental dan keterlacakan aset setelah plugin Rental diaktifkan.',cadence:'Setiap hari ketika plugin aktif',capabilities:['rental transaction','asset traceability','reservation aging']},
  {code:'academy-operations',name:'Academy Operations Agent',domain:'Rundingan Academy',description:'Memantau transaksi akademi, status pembayaran dan pekerjaan yang tertunda melalui transaction spine bersama.',cadence:'Setiap hari',capabilities:['course operations signal','transaction status','aging review']},
  {code:'creative-operations',name:'Creative Operations Agent',domain:'Rundingan Creative',description:'Memantau transaksi brief kreatif, pekerjaan yang tertunda dan keterlacakan biaya.',cadence:'Setiap hari',capabilities:['creative job status','cost traceability','aging review']},
  {code:'event-operations',name:'Event Operations Agent',domain:'Rundingan Event',description:'Memantau transaksi event, status vendor, anggaran dan aktivitas yang tertunda.',cadence:'Setiap hari',capabilities:['event status','vendor transaction','budget traceability']},
