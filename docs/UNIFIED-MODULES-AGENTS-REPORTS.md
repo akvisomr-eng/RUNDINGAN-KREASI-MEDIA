@@ -16,7 +16,7 @@ The internal ENTERPRISE namespace is used only for shared ERP transactions and i
 
 All modules use the same organization, Neon Postgres database, authentication, role assignments, permissions and audit log. The `business_transactions` table is the shared transaction spine. Finance journals, procurement requests, payroll runs and inventory movements can reference the same transaction identity. This avoids independent module databases and gives reports a common traceable reference.
 
-A transaction spine record is not itself a journal entry. Financial recognition still requires approved account mappings and balanced debit/credit journal lines. Inventory receipt, payroll payment, and supplier payment must not be inferred from a status label alone.
+A transaction spine record is not itself a journal entry. Financial recognition still requires approved account mappings and balanced debit/credit journal lines. Inventory receipt, payroll payment, and supplier payment must not be inferred from a status label alone. The `posted` transaction state is reserved for accounting posting; completion of an operational work item is recorded on the work item and does not automatically post a journal.
 
 ## Core module operational workspaces
 
