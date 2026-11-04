@@ -47,6 +47,14 @@ export async function GET(req:Request){
    ]);
    return NextResponse.json({accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics:metrics[0]||{}});
   }
+  if(view==='journal-detail'){
+   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const id=url.searchParams.get('id')||'';
+   const header=await db`SELECT id,journal_number,journal_date,document_date,reference_no,description,journal_type,source_module_code,business_unit_id,party_id,currency,exchange_rate,memo,status FROM finance_journals WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+   if(!header.length)return fail('Jurnal tidak ditemukan.',404);
+   const lines=await db`SELECT l.account_id,l.description,l.debit,l.credit,l.cost_center_id,l.project_id,l.tax_code,l.business_unit_id,l.party_id FROM finance_journal_lines l WHERE l.journal_id=${id}::uuid AND l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY l.id`;
+   return NextResponse.json({journal:header[0],lines});
+  }
   if(!(await allowed(u.id,'finance.reports.read')))return fail('Forbidden',403);
   if(!validDate(start)||!validDate(end)||end<start)return fail('Rentang tanggal laporan tidak valid.');
   if(view==='trial-balance'||view==='profit-loss'||view==='balance-sheet'||view==='ledger'||view==='journal-register'||view==='cash-flow'){
@@ -205,6 +213,46 @@ export async function POST(req:Request){
    if(!rows.length)return fail('Akun induk tidak valid atau data tidak ditemukan.',409);
    await audit(db,u.id,action,'finance_account',String(rows[0].id),{code:rows[0].code,name:rows[0].name});
    return NextResponse.json({account:rows[0]},{status:action==='create-account'?201:200});
+  }
+  if(action==='update-journal'){
+   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const id=str(b.id,80),date=str(b.journal_date,10),docDate=str(b.document_date,10)||date,description=str(b.description,500),reference=str(b.reference_no,100)||null;
+   const source=str(b.source_module_code,30)||'ENTERPRISE',unit=str(b.business_unit_id,80)||null,party=str(b.party_id,80)||null;
+   const lines=Array.isArray(b.lines)?b.lines as Record<string,unknown>[]:[];
+   if(!id||!validDate(date)||!validDate(docDate)||!description||lines.length<2||lines.length>100)return fail('Header jurnal atau jumlah baris tidak valid.');
+   const ls=lines.map(x=>({account_id:str(x.account_id,80),description:str(x.description,240)||null,debit:num(x.debit),credit:num(x.credit),cost_center_id:str(x.cost_center_id,80)||null,project_id:str(x.project_id,80)||null,party_id:str(x.party_id,80)||party,tax_code:str(x.tax_code,40)||null,business_unit_id:str(x.business_unit_id,80)||unit}));
+   if(ls.some(x=>!x.account_id||!Number.isFinite(x.debit)||!Number.isFinite(x.credit)||x.debit<0||x.credit<0||Math.abs(x.debit*100-Math.round(x.debit*100))>1e-6||Math.abs(x.credit*100-Math.round(x.credit*100))>1e-6||((x.debit>0)===(x.credit>0))))return fail('Setiap baris wajib memiliki debit atau kredit saja dan maksimal dua desimal.');
+   const dc=ls.reduce((v,x)=>v+Math.round(x.debit*100),0),cc=ls.reduce((v,x)=>v+Math.round(x.credit*100),0);if(dc<=0||dc!==cc)return fail('Jurnal tidak seimbang.');
+   const result=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    const current=await tx`SELECT id,status,business_transaction_id FROM finance_journals WHERE id=${id}::uuid AND organization_id=${oid} FOR UPDATE`;
+    if(!current.length||current[0].status!=='draft')throw new Error('Hanya jurnal draft yang dapat diperbarui.');
+    const accountIds=[...new Set(ls.map(x=>x.account_id))],validAccounts=await tx`SELECT id FROM finance_accounts WHERE organization_id=${oid} AND id=ANY(${accountIds}::uuid[]) AND is_active AND is_postable`;
+    if(validAccounts.length!==accountIds.length)throw new Error('Akun tidak valid atau bukan akun posting organisasi ini.');
+    const partyIds=[...new Set([party,...ls.map(x=>x.party_id)].filter(Boolean))];if(partyIds.length){const ps=await tx`SELECT id FROM parties WHERE organization_id=${oid} AND id=ANY(${partyIds}::uuid[]) AND deleted_at IS NULL`;if(ps.length!==partyIds.length)throw new Error('Pihak terkait tidak valid.');}
+    const dimIds=[...new Set(ls.flatMap(x=>[x.cost_center_id,x.project_id]).filter(Boolean))];
+    if(dimIds.length){const [ccs,pr]=await Promise.all([tx`SELECT id FROM finance_cost_centers WHERE organization_id=${oid} AND id=ANY(${ls.map(x=>x.cost_center_id).filter(Boolean)}::uuid[])`,tx`SELECT id FROM finance_projects WHERE organization_id=${oid} AND id=ANY(${ls.map(x=>x.project_id).filter(Boolean)}::uuid[])`]);if(ccs.length!==new Set(ls.map(x=>x.cost_center_id).filter(Boolean)).size||pr.length!==new Set(ls.map(x=>x.project_id).filter(Boolean)).size)throw new Error('Cost center atau proyek tidak valid.');}
+    const period=await tx`SELECT id,status FROM finance_periods WHERE organization_id=${oid} AND ${date}::date BETWEEN start_date AND end_date LIMIT 1`;if(period.length&&period[0].status!=='open')throw new Error('Periode akuntansi sudah ditutup.');
+    await tx`UPDATE finance_journals SET journal_date=${date}::date,document_date=${docDate}::date,reference_no=${reference},description=${description},journal_type=${str(b.journal_type,30)||'general'},source_module_code=${source},business_unit_id=${unit}::uuid,party_id=${party}::uuid,currency=${str(b.currency,3)||'IDR'},exchange_rate=${num(b.exchange_rate)||1},memo=${str(b.memo,2000)||null},period_id=${period[0]?.id||null} WHERE id=${id}::uuid`;
+    await tx`DELETE FROM finance_journal_lines WHERE journal_id=${id}::uuid AND organization_id=${oid}`;
+    for(const line of ls)await tx`INSERT INTO finance_journal_lines(organization_id,journal_id,account_id,description,debit,credit,business_unit_id,cost_center_id,project_id,party_id,tax_code,source_module_code) VALUES(${oid},${id}::uuid,${line.account_id}::uuid,${line.description},${line.debit},${line.credit},${line.business_unit_id}::uuid,${line.cost_center_id}::uuid,${line.project_id}::uuid,${line.party_id}::uuid,${line.tax_code},${source})`;
+    if(current[0].business_transaction_id)await tx`UPDATE business_transactions SET reference_no=coalesce(${reference},reference_no),description=${description},transaction_date=${date}::date,amount=${dc/100},currency=${str(b.currency,3)||'IDR'},business_unit_id=${unit}::uuid,party_id=${party}::uuid,updated_at=now() WHERE id=${current[0].business_transaction_id}`;
+    await audit(tx,u.id,'update','finance_journal',id,{journal_date:date,description,debit:dc/100,credit:cc/100});
+    return {id,status:'draft',debit:dc/100,credit:cc/100};
+   });
+   return NextResponse.json({journal:result});
+  }
+  if(action==='void-journal'){
+   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const id=str(b.id,80),reason=str(b.reason,500)||'Draft dibatalkan oleh pengguna.';
+   const result=await db.begin(async(tx:any)=>{
+    const rows=await tx`UPDATE finance_journals SET status='void' WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='draft' RETURNING id,journal_number,business_transaction_id`;
+    if(!rows.length)throw new Error('Hanya jurnal draft yang dapat dibatalkan.');
+    if(rows[0].business_transaction_id)await tx`UPDATE business_transactions SET status='void',updated_at=now() WHERE id=${rows[0].business_transaction_id}`;
+    await audit(tx,u.id,'void','finance_journal',id,{reason,journal_number:rows[0].journal_number});
+    return {id,status:'void'};
+   });
+   return NextResponse.json({journal:result});
   }
   if(action==='create-journal'){
    if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
