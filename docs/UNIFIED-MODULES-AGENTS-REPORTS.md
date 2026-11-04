@@ -45,7 +45,7 @@ Agents may automatically read, analyze, create diagnostic reports and write audi
 - Change database schema, credentials, permissions or production deployments
 - Rewrite source code or deploy a repair
 
-Those actions require explicit human approval and a reviewed execution workflow. The daily Vercel Cron route performs read-only schema and website-readiness diagnostics. It requires a `CRON_SECRET` environment variable and will not run successfully until that secret is configured in the Production deployment environment.
+Those actions require explicit human approval and a reviewed execution workflow. The daily Vercel Cron route runs the Finance, HR/Payroll, Inventory/Procurement, CRM, CMS/SEO, Application Care and Enterprise Orchestrator agents. It stores each diagnostic result and audit event in the shared database. The schedule is read-only and requires a `CRON_SECRET` environment variable; it will not run successfully until that secret is configured in the Production deployment environment.
 
 ## Migration and release sequence
 
