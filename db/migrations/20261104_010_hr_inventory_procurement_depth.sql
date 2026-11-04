@@ -331,3 +331,23 @@ VALUES ('20261104_010_hr_inventory_procurement_depth','Add contracts, attendance
 ON CONFLICT(version) DO NOTHING;
 
 GRANT SELECT,INSERT,UPDATE ON TABLE hr_employee_contracts,hr_attendance_records,hr_leave_requests,hr_payroll_components,hr_payroll_line_components,hr_payroll_settings,inventory_categories,inventory_finance_settings,procurement_request_lines,purchase_orders,purchase_order_lines,goods_receipts,goods_receipt_lines TO rundingan_app_limited;
+
+
+-- Enforce tenant-safe references for procurement transaction and AP document links.
+-- The global id foreign keys above remain as additional existence checks; these
+-- composite keys ensure the referenced records belong to the same organization.
+ALTER TABLE business_transactions
+  ADD CONSTRAINT business_transactions_org_id_uq UNIQUE (organization_id,id);
+
+ALTER TABLE purchase_orders
+  ADD CONSTRAINT purchase_orders_business_transaction_org_fk
+    FOREIGN KEY (organization_id,business_transaction_id)
+    REFERENCES business_transactions(organization_id,id),
+  ADD CONSTRAINT purchase_orders_finance_document_org_fk
+    FOREIGN KEY (organization_id,finance_document_id)
+    REFERENCES finance_documents(organization_id,id);
+
+ALTER TABLE goods_receipts
+  ADD CONSTRAINT goods_receipts_business_transaction_org_fk
+    FOREIGN KEY (organization_id,business_transaction_id)
+    REFERENCES business_transactions(organization_id,id);
