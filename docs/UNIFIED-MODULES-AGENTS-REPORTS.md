@@ -72,3 +72,27 @@ Apply migrations in ascending order on a fresh database:
 8. `20261104_007_module_operational_workspaces`
 
 Development has been updated and verified separately. Production migration is a separate release operation and must be approved and backed up before execution.
+
+
+## Pre-live release gates
+
+Before enabling the Enterprise workspaces on Production, complete the following in a controlled release window:
+
+1. Take and verify a Neon Production restore point.
+2. Confirm the Production application login inherits `rundingan_app_limited` and has the exact grants from migrations 003 and 006.
+3. Apply migrations `20261103_001` through `20261104_007` in ascending order. Never skip a migration marker or run the sequence against a different branch.
+4. Verify the runtime login can read `schema_migrations`, `cms_posts`, `cms_seo_audits`, and `module_work_items`, and can perform only the writes explicitly granted by the migration set.
+5. Confirm the health endpoint returns HTTP 200 with no missing tables or migration markers.
+6. Verify authenticated Owner and least-privilege staff flows for CRM, CMS, Finance, HR, Inventory, each operational module, Reports and AI Agent Console.
+7. Configure a strong `CRON_SECRET` in the Production environment before relying on scheduled diagnostics. Verify an unauthenticated cron call returns 401 and an authorized dry-run completes before enabling the daily schedule.
+8. Review backup/restore, access logs, monitoring and the owner approval path for every irreversible business action.
+
+The migration sequence has been replayed successfully on a disposable Neon validation branch cloned from the Production baseline. The clone began with core markers 0001–0003; migrations 001–007 completed in order. Under the Production runtime login, the validation branch exposed all 21 required tables, all 7 required migration markers, the expected limited-role membership and the core module registry. This validation did not modify Production.
+
+## Known launch boundaries
+
+- This release is a single-organization operational deployment, not a multi-tenant SaaS release. CMS tables and multiple application routes still use the fixed Rundingan organization context. Before onboarding another organization, add organization ownership to CMS records and replace fixed organization slugs with authenticated organization membership/context throughout every API and workspace.
+- Accounting is an operational journal foundation, not a complete statutory accounting suite. General Ledger, Trial Balance, Profit & Loss, Balance Sheet, tax calculations and bank reconciliation remain future work.
+- Payroll does not calculate PPh 21, BPJS or THR automatically.
+- Rental remains an optional entitlement only; full Rental workflows are not delivered.
+- Human approval remains mandatory for journal posting, payroll payment, publication, purchasing, stock adjustments, deletion, code/schema changes and deployment.
