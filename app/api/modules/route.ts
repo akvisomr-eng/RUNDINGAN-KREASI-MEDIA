@@ -11,7 +11,7 @@ export async function GET() {
   const {data} = await auth.getSession();
   if (!data?.user) return error('Unauthorized',401);
   if (!(await hasPermission(data.user.id,'modules.catalog.read'))) return error('Forbidden',403);
-  const sql=getSql();
+  const sql:any=getSql();
   const rows=await sql`
     SELECT c.code,c.name,c.description,c.is_optional,c.default_enabled,
       coalesce(m.status,CASE WHEN c.default_enabled THEN 'active' ELSE 'inactive' END) AS status,
@@ -36,7 +36,7 @@ export async function POST(req:Request) {
   const action=body.action;
   if(code!=='RENTAL')return error('Hanya plugin opsional RENTAL yang dapat dipasang/dinonaktifkan dari katalog ini. Modul inti tidak dapat dinonaktifkan.',409);
   if(action!=='install'&&action!=='disable')return error('Aksi plugin tidak dikenal.');
-  const sql=getSql();
+  const sql:any=getSql();
   const rows=action==='install'
     ? await sql`INSERT INTO organization_modules(organization_id,module_code,status,installed_by,updated_at)
         SELECT id,'RENTAL','active',${data.user.id},NOW() FROM organizations WHERE slug=${ORG}
