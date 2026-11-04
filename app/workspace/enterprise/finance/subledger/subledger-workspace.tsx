@@ -8,7 +8,8 @@ type Line={description:string;quantity:string;unit:string;unit_price:string;disc
 const today=new Date().toISOString().slice(0,10);
 const modules=['ENTERPRISE','ACADEMY','CREATIVE','EVENT','MEDIA','PRODUCTION','RENTAL'];
 const money=(v:any)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(v||0));
-const emptyBankLine=()=>({transaction_date:today,value_date:today,reference_no:'',description:'',debit:'0',credit:'0'});\nconst emptyLine=():Line=>({description:'',quantity:'1',unit:'unit',unit_price:'0',discount_amount:'0',account_id:'',tax_code_id:'',cost_center_id:'',project_id:''});
+const emptyBankLine=()=>({transaction_date:today,value_date:today,reference_no:'',description:'',debit:'0',credit:'0'});
+const emptyLine=():Line=>({description:'',quantity:'1',unit:'unit',unit_price:'0',discount_amount:'0',account_id:'',tax_code_id:'',cost_center_id:'',project_id:''});
 export default function SubledgerWorkspace({permissions:p}:{permissions:{ar:boolean;ap:boolean;cash:boolean;manageAR:boolean;manageAP:boolean;manageCash:boolean}}){
  const [tab,setTab]=useState(p.ar?'ar':p.ap?'ap':'cash'),[master,setMaster]=useState<R>({accounts:[],parties:[],businessUnits:[],projects:[],costCenters:[],taxCodes:[]});
  const [docs,setDocs]=useState<R[]>([]),[cashData,setCashData]=useState<R>({banks:[],settlements:[],reconciliations:[]}),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
