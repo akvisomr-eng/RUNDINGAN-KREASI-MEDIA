@@ -77,7 +77,7 @@ export async function POST(req:Request){
    if(!(await hasPermission(user.id,'hr.payroll.components.manage')))return fail('Forbidden',403);
    const code=str(b,'code',40).toUpperCase(),name=str(b,'name',120),type=str(b,'component_type',30);
    if(!code||!name||!['earning','deduction','employer_contribution'].includes(type))return fail('Komponen payroll tidak valid.');
-   const rows=await db`INSERT INTO hr_payroll_components(organization_id,code,name,component_type,is_taxable,is_recurring,expense_account_id,payable_account_id) SELECT id,${code},${name},${type},${b.is_taxable===true},${b.is_recurring===true},${str(b,'expense_account_id',80)||null}::uuid,${str(b,'payable_account_id',80)||null}::uuid FROM organizations WHERE slug=${ORG} RETURNING id,code,name,component_type`;
+   const rows=await db`INSERT INTO hr_payroll_components(organization_id,code,name,component_type,is_taxable,is_recurring,expense_account_id,payable_account_id) SELECT id,${code},${name},${type},${(b.is_taxable===true||b.is_taxable==='true')},${(b.is_recurring===true||b.is_recurring==='true')},${str(b,'expense_account_id',80)||null}::uuid,${str(b,'payable_account_id',80)||null}::uuid FROM organizations WHERE slug=${ORG} RETURNING id,code,name,component_type`;
    await audit(db,user.id,'create','hr_payroll_component',String(rows[0].id),{code,name,component_type:type});return NextResponse.json({component:rows[0]},{status:201});
   }
   return fail('Aksi HR tidak dikenal.',404);
