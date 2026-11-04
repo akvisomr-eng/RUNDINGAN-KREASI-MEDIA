@@ -18,6 +18,17 @@ All modules use the same organization, Neon Postgres database, authentication, r
 
 A transaction spine record is not itself a journal entry. Financial recognition still requires approved account mappings and balanced debit/credit journal lines. Inventory receipt, payroll payment, and supplier payment must not be inferred from a status label alone.
 
+## Core module operational workspaces
+
+The first operational layer for ACADEMY, CREATIVE, EVENT, MEDIA and PRODUCTION uses the organization-scoped `module_work_items` table. Each record has a module-specific category and metadata, owner, dates, budget, controlled status transitions, audit event and linked `business_transactions` record. The workspace forms expose module-relevant fields:
+- Academy: instructor, delivery mode, capacity and learning hours
+- Creative: client, deliverable type and revision rounds
+- Event: event type, venue and expected attendees
+- Media: content format, distribution channel, editorial stage and rights status
+- Production: production type, shoot location, crew lead and delivery format
+
+The first release intentionally provides a shared work-item workflow rather than claiming complete LMS, DAM, event ticketing, editorial publishing or production scheduling suites. Module records are available in the printable Report Center and the shared transaction spine so specialist agents can monitor them. No payment, publication, stock movement or irreversible business action is performed by these workspaces.
+
 ## Reports
 
 The Report Center reads actual records from the same database. It includes finance journals, employee directory, payroll, stock, procurement, CRM, CMS, audit history, module status and shared transactions. Date filters are applied where the source data supports them. The print stylesheet is designed for browser Print / Save as PDF.
@@ -58,5 +69,6 @@ Apply migrations in ascending order on a fresh database:
 5. `20261104_004_unified_modules_agents_reports`
 6. `20261104_005_enterprise_transaction_module`
 7. `20261104_006_limited_role_health_read_permissions`
+8. `20261104_007_module_operational_workspaces`
 
 Development has been updated and verified separately. Production migration is a separate release operation and must be approved and backed up before execution.
