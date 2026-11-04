@@ -14,16 +14,18 @@ export async function GET(){
  if(!(await hasPermission(user.id,'inventory.items.read')))return fail('Forbidden',403);
  const db:any=getSql();
  try{
-  const [items,categories,requests,orders,receipts,accounts,locations]=await Promise.all([
+  const [items,categories,requests,orders,orderLines,receipts,accounts,locations,parties]=await Promise.all([
    db`SELECT i.id,i.sku,i.name,i.unit,i.item_type,i.minimum_stock,i.reorder_quantity,i.category_id,i.inventory_account_id,i.expense_account_id,i.cogs_account_id,i.is_active,coalesce(sum(CASE WHEN m.movement_type IN('opening','in') THEN m.quantity WHEN m.movement_type='out' THEN -m.quantity ELSE 0 END),0)::numeric(18,3) AS stock FROM inventory_items i JOIN organizations o ON o.id=i.organization_id LEFT JOIN inventory_movements m ON m.item_id=i.id AND m.organization_id=i.organization_id WHERE o.slug=${ORG} GROUP BY i.id ORDER BY i.name`,
    db`SELECT id,code,name,parent_id,is_active FROM inventory_categories WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
    await hasPermission(user.id,'procurement.requests.read')?db`SELECT p.id,p.request_number,p.description,p.estimated_total,p.status,p.needed_by,pa.display_name AS supplier_name FROM procurement_requests p JOIN organizations o ON o.id=p.organization_id LEFT JOIN parties pa ON pa.id=p.supplier_party_id AND pa.organization_id=p.organization_id WHERE o.slug=${ORG} ORDER BY p.created_at DESC LIMIT 300`:[],
    await hasPermission(user.id,'procurement.orders.read')?db`SELECT po.id,po.po_number,po.order_date,po.expected_date,po.status,pa.display_name AS supplier_name,coalesce(sum(pol.line_total),0)::numeric(18,2) AS total FROM purchase_orders po JOIN organizations o ON o.id=po.organization_id JOIN parties pa ON pa.id=po.supplier_party_id AND pa.organization_id=po.organization_id LEFT JOIN purchase_order_lines pol ON pol.purchase_order_id=po.id AND pol.organization_id=po.organization_id WHERE o.slug=${ORG} GROUP BY po.id,pa.display_name ORDER BY po.order_date DESC LIMIT 300`:[],
+   await hasPermission(user.id,'procurement.orders.read')?db`SELECT pol.id,pol.purchase_order_id,pol.item_id,pol.description,pol.quantity,pol.received_quantity,pol.unit_price,po.po_number,i.sku,i.name AS item_name FROM purchase_order_lines pol JOIN organizations o ON o.id=pol.organization_id JOIN purchase_orders po ON po.id=pol.purchase_order_id AND po.organization_id=pol.organization_id LEFT JOIN inventory_items i ON i.id=pol.item_id AND i.organization_id=pol.organization_id WHERE o.slug=${ORG} ORDER BY po.order_date DESC`:[],
    await hasPermission(user.id,'procurement.orders.read')?db`SELECT gr.id,gr.receipt_number,gr.status,gr.received_at,po.po_number,count(gl.id)::int AS line_count FROM goods_receipts gr JOIN organizations o ON o.id=gr.organization_id JOIN purchase_orders po ON po.id=gr.purchase_order_id AND po.organization_id=gr.organization_id LEFT JOIN goods_receipt_lines gl ON gl.goods_receipt_id=gr.id AND gl.organization_id=gr.organization_id WHERE o.slug=${ORG} GROUP BY gr.id,po.po_number ORDER BY gr.received_at DESC LIMIT 300`:[],
    db`SELECT id,code,name,account_type,is_active FROM finance_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND is_active AND is_postable ORDER BY code`,
-   db`SELECT id,code,name,location_type FROM locations WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY name`
+   db`SELECT id,code,name,location_type FROM locations WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY name`,
+   db`SELECT id,display_name FROM parties WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY display_name LIMIT 500`
   ]);
-  return NextResponse.json({items,categories,requests,orders,receipts,accounts,locations});
+  return NextResponse.json({items,categories,requests,orders,orderLines,receipts,accounts,locations,parties});
  }catch{return fail('Data inventaris/pengadaan lanjutan belum tersedia. Periksa migrasi 010.',503);}
 }
 
