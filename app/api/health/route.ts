@@ -21,9 +21,23 @@ const requiredMigrations = [
 
 export async function GET() {
   const timestamp = new Date().toISOString();
+  const sql:any = getSql();
+
+  // Keep database connectivity separate from schema-metadata authorization.
+  // A restricted runtime role can reach Postgres while still lacking access to
+  // schema_migrations; that is a schema-readiness issue, not a database outage.
   try {
-    const sql:any = getSql();
     await sql`SELECT 1`;
+  } catch {
+    return NextResponse.json({
+      status:'error',
+      service:'rundingan-kreasi-media',
+      checks:{database:'unavailable'},
+      timestamp,
+    },{status:503});
+  }
+
+  try {
     const [tableRows,migrationRows] = await Promise.all([
       sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`,
       sql`SELECT version FROM schema_migrations`,
@@ -46,9 +60,9 @@ export async function GET() {
     },{status:ready?200:503});
   } catch {
     return NextResponse.json({
-      status:'error',
+      status:'degraded',
       service:'rundingan-kreasi-media',
-      checks:{database:'unavailable'},
+      checks:{database:'ok',schema:'unavailable',diagnostic:'schema_metadata_access_denied'},
       timestamp,
     },{status:503});
   }
