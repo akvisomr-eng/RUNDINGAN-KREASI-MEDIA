@@ -126,9 +126,6 @@ export async function POST(req:Request){
     else throw new Error('Transisi status dokumen tidak diizinkan.');
     let journal=null;
     if(next==='posted'){
-     const lines=await tx`SELECT l.*,a.account_type,t.tax_account_id,t.code tax_code FROM finance_document_lines l JOIN finance_accounts a ON a.id=l.account_id AND a.organization_id=l.organization_id LEFT JOIN finance_tax_codes t ON t.id=l.tax_code_id AND t.organization_id=l.organization_id WHERE l.document_id=${id}::uuid AND l.organization_id=dummy_org_id()`;
-    }
-    if(next==='posted'){
      const oid=await orgId(tx);
      const lines=await tx`SELECT l.*,t.tax_account_id,t.code tax_code FROM finance_document_lines l LEFT JOIN finance_tax_codes t ON t.id=l.tax_code_id AND t.organization_id=l.organization_id WHERE l.document_id=${id}::uuid AND l.organization_id=${oid} ORDER BY l.line_number`;
      const grouped=new Map<string,{net:number;debit:number;credit:number;desc:string;costCenter:string|null;project:string|null;taxCode:string|null}>();
