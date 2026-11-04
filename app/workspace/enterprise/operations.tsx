@@ -35,7 +35,7 @@ export function OperationsWorkspace({module,canManage}:{module:string;canManage:
  const workItems=(data.workItems||[]) as Row[];
  const status=(s:string)=><span className="ops-status">{s}</span>;
  return <main className="workspace-shell"><header className="workspace-top"><Link className="brand" href="/workspace/enterprise"><span className="brand-mark">R</span><span>RUNDINGAN<span className="brand-sub">KREASI MEDIA</span></span></Link><span className="workspace-label">ENTERPRISE CORE / {module.toUpperCase()}</span></header>
- <section className="ops-content"><div className="ops-heading"><div><p className="auth-eyebrow">ENTERPRISE CORE / DEVELOPMENT WORKSPACE</p><h1>{labels[module]||'Administrasi'}</h1><p>Pengelolaan operasional dengan kontrol akses berbasis role dan pencatatan aktivitas.</p></div><div className="ops-quick-links"><Link href="/workspace/reports">Laporan & cetak ↗</Link><Link href="/workspace/enterprise/agents">AI Agents ↗</Link></div><Link href="/workspace/enterprise" className="enterprise-back">← Kembali ke administrasi</Link></div>
+ <section className="ops-content"><div className="ops-heading"><div><p className="auth-eyebrow">BUSINESS OPERATIONS / WORKSPACE</p><h1>{labels[module]||'Administrasi'}</h1><p>Pengelolaan operasional dengan kontrol akses berbasis role dan pencatatan aktivitas.</p></div><div className="ops-quick-links"><Link href="/workspace/reports">Laporan & cetak ↗</Link><Link href="/workspace/enterprise/agents">AI Agents ↗</Link></div><Link href="/workspace/enterprise" className="enterprise-back">← Kembali ke administrasi</Link></div>
  {message?<p className="ops-message" role="status">{message}</p>:null}
  {loading?<p className="ops-empty">Memuat data modul…</p>:null}
  {!loading&&module==='access'?<>
