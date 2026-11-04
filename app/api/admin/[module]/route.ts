@@ -88,7 +88,7 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
     const title=s(b,'title',180),category=s(b,'category',80)||'General',description=s(b,'description',3000),owner=s(b,'owner_name',160)||null;
     const start=s(b,'start_date',10)||null,due=s(b,'due_date',10)||null,budget=n('budget_amount');
     const validDate=(value:string|null)=>!value||(/^\d{4}-\d{2}-\d{2}$/.test(value)&&(()=>{const d=new Date(value+'T00:00:00.000Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;})());
-    const metadata=typeof b.metadata==='object'&&b.metadata!==null&&!Array.isArray(b.metadata)?b.metadata:{};
+    const metadataKeys=['instructor','delivery_mode','capacity','learning_hours','client_name','deliverable_type','revision_rounds','event_type','venue','expected_attendees','content_format','channel','editorial_stage','rights_status','production_type','shoot_location','crew_lead','delivery_format'];const metadata=Object.fromEntries(metadataKeys.filter(key=>typeof b[key]==='string'&&(b[key] as string).trim()).map(key=>[key,s(b,key,500)]));
     if(title.length<3||!category||!validDate(start)||!validDate(due)||(start&&due&&due<start)||!Number.isFinite(budget)||budget<0||Math.abs(budget*100-Math.round(budget*100))>0.000001||JSON.stringify(metadata).length>8000)return err('Data pekerjaan tidak valid. Periksa judul, tanggal, anggaran dan metadata.');
     const reference='MOD-'+workModuleCode+'-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+crypto.randomUUID().slice(0,8).toUpperCase();
     const rows=await db`WITH o AS(SELECT id FROM organizations WHERE slug=${ORG}),
