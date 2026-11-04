@@ -106,7 +106,7 @@ export async function GET(req:Request){
  runs.push(await save('cms-editorial','CMS Editorial Agent',cmsFindings,['Publikasi artikel tetap memerlukan persetujuan editor.']));
 
  // Business-module specialist agents use the same shared transaction spine.
- const moduleAgents=[['academy-operations','Academy Operations Agent','ACADEMY'],['creative-operations','Creative Operations Agent','CREATIVE'],['event-operations','Event Operations Agent','EVENT'],['media-operations','Media Operations Agent','MEDIA'],['production-operations','Production Operations Agent','PRODUCTION']];
+ const moduleAgents=[['academy-operations','Academy Operations Agent','ACADEMY'],['creative-operations','Creative Operations Agent','CREATIVE'],['event-operations','Event Operations Agent','EVENT'],['media-operations','Media Operations Agent','MEDIA'],['production-operations','Production Operations Agent','PRODUCTION'],['rental-operations','Rental Operations Agent','RENTAL']];
  for(const [code,name,moduleCode] of moduleAgents){
   const [statusRows,stale,unlinked]=await Promise.all([
    sql`SELECT status,count(*)::int AS total,coalesce(sum(amount),0)::numeric AS amount FROM business_transactions t JOIN organizations o ON o.id=t.organization_id WHERE o.slug=${ORG} AND t.module_code=${moduleCode} GROUP BY status ORDER BY status`,
