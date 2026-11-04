@@ -43,9 +43,10 @@ export async function GET(req:Request){
  const db:any=getSql();
  try{
   if(view==='documents'||view==='ar-aging'||view==='ap-aging'){
+   const canAR=await hasPermission(u.id,'finance.ar.read'),canAP=await hasPermission(u.id,'finance.ap.read');
    const permission=type==='purchase_bill'?'finance.ap.read':'finance.ar.read';
-   if(!(await hasPermission(u.id,permission)))return fail('Forbidden',403);
-   const types= view==='ar-aging'?['sales_invoice']:view==='ap-aging'?['purchase_bill']:type==='all'?['sales_invoice','purchase_bill']:[type==='purchase_bill'?'purchase_bill':'sales_invoice'];
+   if(type==='all'?(!canAR&&!canAP):!(await hasPermission(u.id,permission)))return fail('Forbidden',403);
+   const types= view==='ar-aging'?['sales_invoice']:view==='ap-aging'?['purchase_bill']:type==='all'?[...(canAR?['sales_invoice']:[]),...(canAP?['purchase_bill']:[])]:[type==='purchase_bill'?'purchase_bill':'sales_invoice'];
    const docs=await db`SELECT d.id,d.document_type,d.document_number,d.external_reference,d.document_date,d.due_date,d.party_id,p.display_name party_name,d.source_module_code,d.business_unit_id,d.project_id,d.currency,d.subtotal,d.discount_total,d.tax_total,d.total_amount,d.settled_amount,(d.total_amount-d.settled_amount)::numeric(18,2) outstanding,d.status,d.journal_id,d.created_at
     FROM finance_documents d JOIN parties p ON p.id=d.party_id AND p.organization_id=d.organization_id
     WHERE d.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND d.document_type=ANY(${types}::text[])
