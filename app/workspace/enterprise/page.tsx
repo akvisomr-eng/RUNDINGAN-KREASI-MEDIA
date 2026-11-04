@@ -68,7 +68,7 @@ export default async function EnterpriseCorePage() {
   const canReadUsers = await hasPermission(session.user.id, 'core.users.read');
   const canReadRoles = await hasPermission(session.user.id, 'core.roles.read');
   const canReadUnits = await hasPermission(session.user.id, 'core.business_units.read');
-  const [canReadAudit, canReadFinance, canReadPeople, canReadInventory] = await Promise.all([hasPermission(session.user.id, 'core.audit.read'), hasPermission(session.user.id, 'finance.accounts.read'), hasPermission(session.user.id, 'hr.employees.read'), hasPermission(session.user.id, 'inventory.items.read')]);
+  const [canReadAudit, canReadFinance, canReadPeople, canReadInventory, canReadModules, canReadAgents, canReadReports] = await Promise.all([hasPermission(session.user.id, 'core.audit.read'), hasPermission(session.user.id, 'finance.accounts.read'), hasPermission(session.user.id, 'hr.employees.read'), hasPermission(session.user.id, 'inventory.items.read'), hasPermission(session.user.id, 'modules.catalog.read'), hasPermission(session.user.id, 'agents.read'), hasPermission(session.user.id, 'reports.read')]);
 
   const metrics: Metric[] = [
     { label: 'UNIT BISNIS', value: organization.business_units, detail: canReadUnits ? 'Data unit organisasi' : 'Izin detail unit tidak tersedia' },
