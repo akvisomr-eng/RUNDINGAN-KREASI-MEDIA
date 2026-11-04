@@ -3,7 +3,7 @@ import {getSql} from '@/lib/db';
 export const dynamic='force-dynamic';
 const ORG='rundingan-kreasi-media';
 const requiredTables=['organizations','business_units','parties','audit_logs','cms_posts','finance_accounts','finance_journals','finance_journal_lines','hr_employees','hr_payroll_runs','hr_payroll_lines','inventory_items','inventory_movements','procurement_requests','module_catalog','organization_modules','business_transactions','agent_runs','agent_actions'];
-const requiredMigrations=['20261103_001_custom_cms','20261103_002_cms_permissions','20261104_003_enterprise_operational_modules','20261104_004_unified_modules_agents_reports','20261104_005_enterprise_transaction_module'];
+const requiredMigrations=['20261103_001_custom_cms','20261103_002_cms_permissions','20261104_003_enterprise_operational_modules','20261104_004_unified_modules_agents_reports','20261104_005_enterprise_transaction_module','20261104_006_limited_role_health_read_permissions'];
 
 export async function GET(req:Request){
  const secret=process.env.CRON_SECRET;
