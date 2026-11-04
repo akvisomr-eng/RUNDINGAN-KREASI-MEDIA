@@ -57,5 +57,6 @@ Apply migrations in ascending order on a fresh database:
 4. `20261104_003_enterprise_operational_modules`
 5. `20261104_004_unified_modules_agents_reports`
 6. `20261104_005_enterprise_transaction_module`
+7. `20261104_006_limited_role_health_read_permissions`
 
 Development has been updated and verified separately. Production migration is a separate release operation and must be approved and backed up before execution.
