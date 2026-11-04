@@ -153,3 +153,18 @@ a.enterprise-area:hover{background:#e8e9df;border-color:#9ba88e}
 .cms-user{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.cms-user a{font-size:10px;color:#536a3d;border-bottom:1px solid #a8b39b;padding-bottom:4px}
 
 .agent-local-insight{margin-top:10px;padding:12px;background:#eef0e9;border-left:2px solid #879b68;font-size:10px;line-height:1.8;color:#536157;white-space:pre-wrap;max-width:560px}
+
+/* Core module workflow layout and clean printable reports. */
+.ops-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 0 16px}
+.ops-section-heading h2{margin:0 0 8px}
+.ops-section-heading p{font-size:11px;color:#78847c;line-height:1.7;margin:0}
+.ops-form-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:760px){.ops-section-heading{flex-direction:column}.ops-form-row{grid-template-columns:1fr}}
+@media print{
+ .workspace-top,.ops-heading,.ops-form,.ops-message,.ops-quick-links,.ops-link-button,button{display:none!important}
+ .workspace-shell{background:#fff!important}
+ .ops-content{max-width:none!important;padding:0!important}
+ .ops-section{break-inside:avoid;background:#fff!important;border:1px solid #bbb!important}
+ .ops-table-wrap{overflow:visible!important}
+ .ops-table{font-size:9pt!important}
+}

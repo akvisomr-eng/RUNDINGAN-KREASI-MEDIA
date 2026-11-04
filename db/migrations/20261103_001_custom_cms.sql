@@ -36,3 +36,7 @@ CREATE TABLE IF NOT EXISTS cms_seo_audits (
 
 CREATE INDEX IF NOT EXISTS cms_seo_audits_post_created_idx
   ON cms_seo_audits (post_id, created_at DESC);
+
+INSERT INTO schema_migrations(version,description,applied_at)
+VALUES ('20261103_001_custom_cms','Create CMS posts and SEO audit foundations',NOW())
+ON CONFLICT(version) DO NOTHING;

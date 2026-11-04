@@ -58,7 +58,7 @@ export default async function EnterpriseCorePage() {
         <section className="workspace-content">
           <p className="auth-eyebrow">CORE / ORGANIZATION NOT FOUND</p>
           <h1>Profil organisasi belum tersedia.</h1>
-          <p>Data organisasi tidak ditemukan pada database Development.</p>
+          <p>Data organisasi tidak ditemukan pada database aktif.</p>
           <Link className="workspace-link" href="/workspace">Kembali ke workspace ↗</Link>
         </section>
       </main>
@@ -68,7 +68,7 @@ export default async function EnterpriseCorePage() {
   const canReadUsers = await hasPermission(session.user.id, 'core.users.read');
   const canReadRoles = await hasPermission(session.user.id, 'core.roles.read');
   const canReadUnits = await hasPermission(session.user.id, 'core.business_units.read');
-  const [canReadAudit, canReadFinance, canReadPeople, canReadInventory, canReadModules, canReadAgents, canReadReports] = await Promise.all([hasPermission(session.user.id, 'core.audit.read'), hasPermission(session.user.id, 'finance.accounts.read'), hasPermission(session.user.id, 'hr.employees.read'), hasPermission(session.user.id, 'inventory.items.read'), hasPermission(session.user.id, 'modules.catalog.read'), hasPermission(session.user.id, 'agents.read'), hasPermission(session.user.id, 'reports.read')]);
+  const [canReadAudit, canReadFinance, canReadPeople, canReadInventory, canReadModules, canReadAgents, canReadReports, canReadAcademy, canReadCreative, canReadEvent, canReadMedia, canReadProduction] = await Promise.all([hasPermission(session.user.id, 'core.audit.read'), hasPermission(session.user.id, 'finance.accounts.read'), hasPermission(session.user.id, 'hr.employees.read'), hasPermission(session.user.id, 'inventory.items.read'), hasPermission(session.user.id, 'modules.catalog.read'), hasPermission(session.user.id, 'agents.read'), hasPermission(session.user.id, 'reports.read'), hasPermission(session.user.id, 'academy.work.read'), hasPermission(session.user.id, 'creative.work.read'), hasPermission(session.user.id, 'event.work.read'), hasPermission(session.user.id, 'media.work.read'), hasPermission(session.user.id, 'production.work.read')]);
 
   const metrics: Metric[] = [
     { label: 'UNIT BISNIS', value: organization.business_units, detail: canReadUnits ? 'Data unit organisasi' : 'Izin detail unit tidak tersedia' },
@@ -110,7 +110,7 @@ export default async function EnterpriseCorePage() {
 
         <div className="enterprise-section-head">
           <div><p className="auth-eyebrow">LIVE DATABASE SNAPSHOT</p><h2>Ringkasan organisasi</h2></div>
-          <span>DEVELOPMENT ENVIRONMENT</span>
+          <span>ACTIVE ENVIRONMENT</span>
         </div>
         <div className="enterprise-metrics">
           {metrics.map((metric) => (
@@ -154,10 +154,15 @@ export default async function EnterpriseCorePage() {
           <Link href="/workspace/enterprise/governance" className="enterprise-area">
             <span>08 / GOVERNANCE</span><strong>Audit & kepatuhan</strong><small>{canReadAudit ? "Jejak aktivitas pengguna dan perubahan data." : "Memerlukan izin core.audit.read."}</small><b>{canReadAudit ? "Lihat audit log ↗" : "Akses terbatas"}</b></Link>
           {canReadModules ? <Link href="/workspace/enterprise/modules" className="enterprise-area"><span>09 / MODULE PLUGINS</span><strong>Katalog modul & plugin</strong><small>ACADEMY, CREATIVE, EVENT, MEDIA, PRODUCTION dan plugin RENTAL.</small><b>Kelola modul ↗</b></Link> : null}
+          {canReadAcademy ? <Link href="/workspace/enterprise/academy" className="enterprise-area"><span>12 / ACADEMY</span><strong>Rundingan Academy</strong><small>Program, kelas, instruktur dan peserta pembelajaran.</small><b>Buka workflow ↗</b></Link> : null}
+          {canReadCreative ? <Link href="/workspace/enterprise/creative" className="enterprise-area"><span>13 / CREATIVE</span><strong>Rundingan Creative</strong><small>Creative brief, deliverable, klien dan approval.</small><b>Buka workflow ↗</b></Link> : null}
+          {canReadEvent ? <Link href="/workspace/enterprise/event" className="enterprise-area"><span>14 / EVENT</span><strong>Rundingan Event</strong><small>Perencanaan acara, venue, peserta dan anggaran.</small><b>Buka workflow ↗</b></Link> : null}
+          {canReadMedia ? <Link href="/workspace/enterprise/media" className="enterprise-area"><span>15 / MEDIA</span><strong>Rundingan Media</strong><small>Editorial, format konten, kanal dan hak publikasi.</small><b>Buka workflow ↗</b></Link> : null}
+          {canReadProduction ? <Link href="/workspace/enterprise/production" className="enterprise-area"><span>16 / PRODUCTION</span><strong>Rundingan Production</strong><small>Produksi, lokasi, kru dan deliverables.</small><b>Buka workflow ↗</b></Link> : null}
           {canReadAgents ? <Link href="/workspace/enterprise/agents" className="enterprise-area"><span>10 / MULTI-AGENT AI</span><strong>AI Operations & Maintenance</strong><small>Agen domain, pemeriksaan integritas, website dan database.</small><b>Buka control center ↗</b></Link> : null}
           {canReadReports ? <Link href="/workspace/reports" className="enterprise-area"><span>11 / REPORT CENTER</span><strong>Laporan & dokumen cetak</strong><small>Laporan keuangan, SDM, persediaan, CRM, CMS, audit dan transaksi.</small><b>Buka laporan ↗</b></Link> : null}
         </div>
-        <p className="enterprise-footnote">Angka di atas dibaca langsung dari database Development. Modul yang berstatus belum diimplementasikan tidak melakukan operasi bisnis atau mengubah data.</p>
+        <p className="enterprise-footnote">Angka di atas dibaca langsung dari database aktif. Lima modul inti menyediakan workflow operasional awal; fitur lanjutan dan kepatuhan sektoral tetap mengikuti tahap implementasi.</p>
       </section>
     </main>
   );
