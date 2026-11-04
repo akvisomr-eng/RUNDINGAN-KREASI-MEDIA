@@ -114,6 +114,17 @@ ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_journal_fk
   FOREIGN KEY(organization_id,finance_journal_id) REFERENCES finance_journals(organization_id,id);
 ALTER TABLE hr_payroll_runs ADD CONSTRAINT hr_payroll_runs_payment_journal_fk
   FOREIGN KEY(organization_id,payment_journal_id) REFERENCES finance_journals(organization_id,id);
+ALTER TABLE hr_payroll_lines ADD COLUMN IF NOT EXISTS organization_id uuid;
+UPDATE hr_payroll_lines pl SET organization_id=r.organization_id
+  FROM hr_payroll_runs r WHERE r.id=pl.payroll_run_id AND pl.organization_id IS NULL;
+ALTER TABLE hr_payroll_lines ALTER COLUMN organization_id SET NOT NULL;
+ALTER TABLE hr_payroll_lines ADD CONSTRAINT hr_payroll_lines_org_id_uq UNIQUE(organization_id,id);
+ALTER TABLE hr_payroll_lines ADD CONSTRAINT hr_payroll_lines_org_run_fk
+  FOREIGN KEY(organization_id,payroll_run_id) REFERENCES hr_payroll_runs(organization_id,id) ON DELETE CASCADE;
+ALTER TABLE hr_payroll_lines ADD CONSTRAINT hr_payroll_lines_org_employee_fk
+  FOREIGN KEY(organization_id,employee_id) REFERENCES hr_employees(organization_id,id);
+ALTER TABLE hr_payroll_line_components ADD CONSTRAINT hr_payroll_line_components_org_line_fk
+  FOREIGN KEY(organization_id,payroll_line_id) REFERENCES hr_payroll_lines(organization_id,id) ON DELETE CASCADE;
 CREATE TABLE IF NOT EXISTS hr_payroll_settings (
   organization_id uuid PRIMARY KEY REFERENCES organizations(id),
   salary_expense_account_id uuid NOT NULL,
@@ -169,6 +180,10 @@ ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_business_unit
   FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
 ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_journal_fk
   FOREIGN KEY(organization_id,finance_journal_id) REFERENCES finance_journals(organization_id,id);
+ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_org_item_fk
+  FOREIGN KEY(organization_id,item_id) REFERENCES inventory_items(organization_id,id);
+ALTER TABLE inventory_movements ADD CONSTRAINT inventory_movements_org_location_fk
+  FOREIGN KEY(organization_id,location_id) REFERENCES locations(organization_id,id);
 CREATE TABLE IF NOT EXISTS inventory_finance_settings (
   organization_id uuid PRIMARY KEY REFERENCES organizations(id),
   inventory_clearing_account_id uuid NOT NULL,
@@ -189,6 +204,8 @@ ALTER TABLE procurement_requests ADD CONSTRAINT procurement_requests_business_un
   FOREIGN KEY(organization_id,business_unit_id) REFERENCES business_units(organization_id,id);
 ALTER TABLE procurement_requests ADD CONSTRAINT procurement_requests_journal_fk
   FOREIGN KEY(organization_id,finance_journal_id) REFERENCES finance_journals(organization_id,id);
+ALTER TABLE procurement_requests ADD CONSTRAINT procurement_requests_org_supplier_fk
+  FOREIGN KEY(organization_id,supplier_party_id) REFERENCES parties(organization_id,id);
 
 CREATE TABLE IF NOT EXISTS procurement_request_lines (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
