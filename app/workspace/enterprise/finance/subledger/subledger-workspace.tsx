@@ -24,7 +24,7 @@ export default function SubledgerWorkspace({permissions:p}:{permissions:{ar:bool
   try{
    const [m,d,c]=await Promise.all([
     fetch('/api/finance?view=overview',{cache:'no-store'}).then(r=>r.json()),
-    fetch('/api/finance/subledger?view=documents&type='+docType,{cache:'no-store'}).then(r=>r.json()),
+    fetch('/api/finance/subledger?view=documents&type='+(tab==='cash'?'all':docType),{cache:'no-store'}).then(r=>r.json()),
     fetch('/api/finance/subledger?view=cash-bank',{cache:'no-store'}).then(r=>r.json())
    ]);
    if(m.error)throw new Error(m.error);if(d.error&&d.error!=='Forbidden')throw new Error(d.error);if(c.error&&c.error!=='Forbidden')throw new Error(c.error);
