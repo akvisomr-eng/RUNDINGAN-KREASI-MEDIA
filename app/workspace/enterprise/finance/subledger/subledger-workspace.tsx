@@ -38,7 +38,6 @@ export default function SubledgerWorkspace({permissions:p}:{permissions:{ar:bool
   catch(e){setMessage(e instanceof Error?e.message:'Operasi gagal.');return null;}finally{setBusy(false);}
  }
  const totals=useMemo(()=>lines.reduce((v,l)=>{const base=Math.max(0,Number(l.quantity||0)*Number(l.unit_price||0)-Number(l.discount_amount||0));const tax=master.taxCodes?.find((t:R)=>t.id===l.tax_code_id);return {subtotal:v.subtotal+base,tax:v.tax+base*Number(tax?.rate||0)/100};},{subtotal:0,tax:0}),[lines,master.taxCodes]);
- const selectedDocs=docs.filter(d=>d.status==='posted'||d.status==='part_paid');
  const parties=(master.parties||[]).filter((x:R)=>x.party_type!=='employee');
  function resetDocument(){setForm({document_number:'',external_reference:'',document_date:today,due_date:today,party_id:'',source_module_code:'ENTERPRISE',business_unit_id:'',project_id:'',control_account_id:'',currency:'IDR',exchange_rate:'1',notes:''});setLines([emptyLine()]);}
  async function createDocument(){const result=await send('/api/finance/subledger',{action:'create-document',document_type:docType,...form,lines});if(result)resetDocument();}
