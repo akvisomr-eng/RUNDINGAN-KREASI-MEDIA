@@ -25,14 +25,14 @@ export async function GET(req:Request){
  const db:any=getSql();
  try{
   if(view==='overview'){
-   if(!(await allowed(u.id,'finance.accounts.read')))return fail('Forbidden',403);
+   const canReadOverview=await Promise.all(['finance.accounts.read','finance.ar.read','finance.ap.read','finance.cash.read'].map(code=>allowed(u.id,code)));if(!canReadOverview.some(Boolean))return fail('Forbidden',403);
    const [accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics]=await Promise.all([
     db`SELECT a.id,a.code,a.name,a.account_type,a.normal_balance,a.parent_account_id,a.account_group,a.description,a.is_postable,a.is_active,a.cash_flow_category,a.default_tax_code,a.display_order, p.code AS parent_code,p.name AS parent_name FROM finance_accounts a LEFT JOIN finance_accounts p ON p.id=a.parent_account_id AND p.organization_id=a.organization_id WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY a.code`,
     db`SELECT j.id,j.journal_number,j.journal_date,j.document_date,j.reference_no,j.description,j.journal_type,j.source_module_code,j.status,j.created_at,j.business_transaction_id,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(l.id)::int line_count FROM finance_journals j LEFT JOIN finance_journal_lines l ON l.journal_id=j.id JOIN organizations o ON o.id=j.organization_id WHERE o.slug=${ORG} GROUP BY j.id ORDER BY j.journal_date DESC,j.created_at DESC LIMIT 300`,
     db`SELECT id,fiscal_year,period_number,name,start_date,end_date,status,closed_at FROM finance_periods WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY start_date DESC LIMIT 50`,
     db`SELECT id,code,name,business_unit_id,is_active FROM finance_cost_centers WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,code,name,module_code,business_unit_id,budget_amount,status FROM finance_projects WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
-    db`SELECT id,code,name,tax_type,rate,is_active FROM finance_tax_codes WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
+    db`SELECT id,code,name,tax_type,rate,tax_account_id,effective_from,effective_to,is_active FROM finance_tax_codes WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY code`,
     db`SELECT id,bank_name,account_name,account_number_masked,currency,account_id,is_active FROM finance_bank_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY bank_name`,
     db`SELECT id,code,name FROM business_units WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY code`,
     db`SELECT id,party_type,display_name,legal_name FROM parties WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND deleted_at IS NULL ORDER BY display_name LIMIT 500`,
@@ -46,6 +46,14 @@ export async function GET(req:Request){
       FROM organizations o WHERE o.slug=${ORG}`
    ]);
    return NextResponse.json({accounts,journals,periods,costCenters,projects,taxCodes,bankAccounts,businessUnits,parties,metrics:metrics[0]||{}});
+  }
+  if(view==='journal-detail'){
+   const canViewJournal=await Promise.all(['finance.accounts.read','finance.reports.read','finance.journals.create'].map(code=>allowed(u.id,code)));if(!canViewJournal.some(Boolean))return fail('Forbidden',403);
+   const id=url.searchParams.get('id')||'';
+   const header=await db`SELECT id,journal_number,journal_date,document_date,reference_no,description,journal_type,source_module_code,business_unit_id,party_id,currency,exchange_rate,memo,status FROM finance_journals WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+   if(!header.length)return fail('Jurnal tidak ditemukan.',404);
+   const lines=await db`SELECT l.account_id,l.description,l.debit,l.credit,l.cost_center_id,l.project_id,l.tax_code,l.business_unit_id,l.party_id FROM finance_journal_lines l WHERE l.journal_id=${id}::uuid AND l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) ORDER BY l.id`;
+   return NextResponse.json({journal:header[0],lines});
   }
   if(!(await allowed(u.id,'finance.reports.read')))return fail('Forbidden',403);
   if(!validDate(start)||!validDate(end)||end<start)return fail('Rentang tanggal laporan tidak valid.');
@@ -106,6 +114,13 @@ export async function GET(req:Request){
     return NextResponse.json({rows:cash,view,start,end,notice:'Klasifikasi arus kas mengikuti kategori akun. Laporan arus kas tidak langsung yang final memerlukan penyesuaian non-kas dan perubahan modal kerja.'});
    }
    return NextResponse.json({rows,view,start,end});
+  }
+  if(view==='tax-summary'){
+   const taxSummary=await db`SELECT l.tax_code,j.source_module_code,a.account_type,coalesce(sum(l.debit),0)::numeric(18,2) debit,coalesce(sum(l.credit),0)::numeric(18,2) credit,count(DISTINCT j.id)::int journal_count
+    FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id JOIN finance_accounts a ON a.id=l.account_id AND a.organization_id=l.organization_id
+    WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND j.status='posted' AND j.journal_date BETWEEN ${start}::date AND ${end}::date AND l.tax_code IS NOT NULL
+    AND (${module}='' OR j.source_module_code=${module}) GROUP BY l.tax_code,j.source_module_code,a.account_type ORDER BY l.tax_code,j.source_module_code`;
+   return NextResponse.json({rows:taxSummary,view,start,end});
   }
   if(view==='integrity'){
    const [unbalanced,closedPeriod,orphan]=await Promise.all([
@@ -196,8 +211,22 @@ export async function POST(req:Request){
    if(action!=='deactivate-account'&&(!code||!name||!['asset','liability','equity','revenue','expense'].includes(type)||!['debit','credit'].includes(normal)))return fail('Data akun tidak valid.');
    const rows=await db.begin(async(tx:any)=>{
     if(action==='deactivate-account')return tx`UPDATE finance_accounts SET is_active=false,updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
-    if(parent){const p=await tx`SELECT id,is_postable FROM finance_accounts WHERE id=${parent}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;if(!p.length||p[0].is_postable)return [];}
-    if(action==='update-account')return tx`UPDATE finance_accounts SET code=${code},name=${name},account_type=${type},normal_balance=${normal},parent_account_id=${parent}::uuid,account_group=${str(b.account_group,100)||null},description=${str(b.description,1000)||null},is_postable=${b.is_postable!==false},cash_flow_category=${str(b.cash_flow_category,40)||null},default_tax_code=${str(b.default_tax_code,40)||null},display_order=${num(b.display_order)},is_active=${b.is_active!==false},updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
+    if(parent){
+     if(parent===id)return [];
+     const p=await tx`SELECT id,is_postable,account_type FROM finance_accounts WHERE id=${parent}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+     if(!p.length||p[0].is_postable||p[0].account_type!==type)return [];
+     if(action==='update-account'){
+      const cycle=await tx`WITH RECURSIVE descendants(id) AS (SELECT id FROM finance_accounts WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND parent_account_id=${id}::uuid UNION ALL SELECT a.id FROM finance_accounts a JOIN descendants d ON a.parent_account_id=d.id WHERE a.organization_id=(SELECT id FROM organizations WHERE slug=${ORG})) SELECT id FROM descendants WHERE id=${parent}::uuid LIMIT 1`;
+      if(cycle.length)return [];
+     }
+    }
+    if(action==='update-account'){
+     const current=await tx`SELECT account_type,normal_balance FROM finance_accounts WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG})`;
+     if(!current.length)return [];
+     const used=await tx`SELECT 1 FROM finance_journal_lines l JOIN finance_journals j ON j.id=l.journal_id AND j.organization_id=l.organization_id WHERE l.organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND l.account_id=${id}::uuid AND j.status='posted' LIMIT 1`;
+     if(used.length&&(current[0].account_type!==type||current[0].normal_balance!==normal||b.is_postable===false))throw new Error('Jenis, saldo normal, dan status posting akun tidak dapat diubah setelah digunakan pada jurnal terposting.');
+     return tx`UPDATE finance_accounts SET code=${code},name=${name},account_type=${type},normal_balance=${normal},parent_account_id=${parent}::uuid,account_group=${str(b.account_group,100)||null},description=${str(b.description,1000)||null},is_postable=${b.is_postable!==false},cash_flow_category=${str(b.cash_flow_category,40)||null},default_tax_code=${str(b.default_tax_code,40)||null},display_order=${num(b.display_order)},is_active=${b.is_active!==false},updated_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) RETURNING id,code,name`;
+    }
     return tx`INSERT INTO finance_accounts(organization_id,code,name,account_type,normal_balance,parent_account_id,account_group,description,is_postable,cash_flow_category,default_tax_code,display_order)
       SELECT id,${code},${name},${type},${normal},${parent}::uuid,${str(b.account_group,100)||null},${str(b.description,1000)||null},${b.is_postable!==false},${str(b.cash_flow_category,40)||null},${str(b.default_tax_code,40)||null},${num(b.display_order)}
       FROM organizations WHERE slug=${ORG} RETURNING id,code,name`;
@@ -205,6 +234,48 @@ export async function POST(req:Request){
    if(!rows.length)return fail('Akun induk tidak valid atau data tidak ditemukan.',409);
    await audit(db,u.id,action,'finance_account',String(rows[0].id),{code:rows[0].code,name:rows[0].name});
    return NextResponse.json({account:rows[0]},{status:action==='create-account'?201:200});
+  }
+  if(action==='update-journal'){
+   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const id=str(b.id,80),date=str(b.journal_date,10),docDate=str(b.document_date,10)||date,description=str(b.description,500),reference=str(b.reference_no,100)||null;
+   const source=str(b.source_module_code,30)||'ENTERPRISE',unit=str(b.business_unit_id,80)||null,party=str(b.party_id,80)||null;
+   const lines=Array.isArray(b.lines)?b.lines as Record<string,unknown>[]:[];
+   if(!id||!validDate(date)||!validDate(docDate)||!description||lines.length<2||lines.length>100)return fail('Header jurnal atau jumlah baris tidak valid.');
+   const ls=lines.map(x=>({account_id:str(x.account_id,80),description:str(x.description,240)||null,debit:num(x.debit),credit:num(x.credit),cost_center_id:str(x.cost_center_id,80)||null,project_id:str(x.project_id,80)||null,party_id:str(x.party_id,80)||party,tax_code:str(x.tax_code,40)||null,business_unit_id:str(x.business_unit_id,80)||unit}));
+   if(ls.some(x=>!x.account_id||!Number.isFinite(x.debit)||!Number.isFinite(x.credit)||x.debit<0||x.credit<0||Math.abs(x.debit*100-Math.round(x.debit*100))>1e-6||Math.abs(x.credit*100-Math.round(x.credit*100))>1e-6||((x.debit>0)===(x.credit>0))))return fail('Setiap baris wajib memiliki debit atau kredit saja dan maksimal dua desimal.');
+   const dc=ls.reduce((v,x)=>v+Math.round(x.debit*100),0),cc=ls.reduce((v,x)=>v+Math.round(x.credit*100),0);if(dc<=0||dc!==cc)return fail('Jurnal tidak seimbang.');
+   const result=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    const current=await tx`SELECT id,status,business_transaction_id FROM finance_journals WHERE id=${id}::uuid AND organization_id=${oid} FOR UPDATE`;
+    if(!current.length||current[0].status!=='draft')throw new Error('Hanya jurnal draft yang dapat diperbarui.');
+    const accountIds=[...new Set(ls.map(x=>x.account_id))],validAccounts=await tx`SELECT id FROM finance_accounts WHERE organization_id=${oid} AND id=ANY(${accountIds}::uuid[]) AND is_active AND is_postable`;
+    if(validAccounts.length!==accountIds.length)throw new Error('Akun tidak valid atau bukan akun posting organisasi ini.');
+    const partyIds=[...new Set([party,...ls.map(x=>x.party_id)].filter(Boolean))];if(partyIds.length){const ps=await tx`SELECT id FROM parties WHERE organization_id=${oid} AND id=ANY(${partyIds}::uuid[]) AND deleted_at IS NULL`;if(ps.length!==partyIds.length)throw new Error('Pihak terkait tidak valid.');}
+    const costIds=[...new Set(ls.map(x=>x.cost_center_id).filter(Boolean))],projectIds=[...new Set(ls.map(x=>x.project_id).filter(Boolean))];
+    if(costIds.length){const ccs=await tx`SELECT id FROM finance_cost_centers WHERE organization_id=${oid} AND id=ANY(${costIds}::uuid[])`;if(ccs.length!==costIds.length)throw new Error('Cost center tidak valid.');}
+    if(projectIds.length){const projects=await tx`SELECT id FROM finance_projects WHERE organization_id=${oid} AND id=ANY(${projectIds}::uuid[])`;if(projects.length!==projectIds.length)throw new Error('Proyek tidak valid.');}
+    const lineUnits=[...new Set(ls.map(x=>x.business_unit_id).filter(Boolean))];if(lineUnits.length){const units=await tx`SELECT id FROM business_units WHERE organization_id=${oid} AND id=ANY(${lineUnits}::uuid[]) AND deleted_at IS NULL`;if(units.length!==lineUnits.length)throw new Error('Unit bisnis pada baris jurnal tidak valid.');}
+    const period=await tx`SELECT id,status FROM finance_periods WHERE organization_id=${oid} AND ${date}::date BETWEEN start_date AND end_date LIMIT 1`;if(period.length&&period[0].status!=='open')throw new Error('Periode akuntansi sudah ditutup.');
+    await tx`UPDATE finance_journals SET journal_date=${date}::date,document_date=${docDate}::date,reference_no=${reference},description=${description},journal_type=${str(b.journal_type,30)||'general'},source_module_code=${source},business_unit_id=${unit}::uuid,party_id=${party}::uuid,currency=${str(b.currency,3)||'IDR'},exchange_rate=${num(b.exchange_rate)||1},memo=${str(b.memo,2000)||null},period_id=${period[0]?.id||null} WHERE id=${id}::uuid`;
+    await tx`DELETE FROM finance_journal_lines WHERE journal_id=${id}::uuid AND organization_id=${oid}`;
+    for(const line of ls)await tx`INSERT INTO finance_journal_lines(organization_id,journal_id,account_id,description,debit,credit,business_unit_id,cost_center_id,project_id,party_id,tax_code,source_module_code) VALUES(${oid},${id}::uuid,${line.account_id}::uuid,${line.description},${line.debit},${line.credit},${line.business_unit_id}::uuid,${line.cost_center_id}::uuid,${line.project_id}::uuid,${line.party_id}::uuid,${line.tax_code},${source})`;
+    if(current[0].business_transaction_id)await tx`UPDATE business_transactions SET module_code=${source},reference_no=coalesce(${reference},reference_no),description=${description},transaction_date=${date}::date,amount=${dc/100},currency=${str(b.currency,3)||'IDR'},business_unit_id=${unit}::uuid,party_id=${party}::uuid,updated_at=now() WHERE id=${current[0].business_transaction_id}`;
+    await audit(tx,u.id,'update','finance_journal',id,{journal_date:date,description,debit:dc/100,credit:cc/100});
+    return {id,status:'draft',debit:dc/100,credit:cc/100};
+   });
+   return NextResponse.json({journal:result});
+  }
+  if(action==='void-journal'){
+   if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
+   const id=str(b.id,80),reason=str(b.reason,500)||'Draft dibatalkan oleh pengguna.';
+   const result=await db.begin(async(tx:any)=>{
+    const rows=await tx`UPDATE finance_journals SET status='void' WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='draft' RETURNING id,journal_number,business_transaction_id`;
+    if(!rows.length)throw new Error('Hanya jurnal draft yang dapat dibatalkan.');
+    if(rows[0].business_transaction_id)await tx`UPDATE business_transactions SET status='void',updated_at=now() WHERE id=${rows[0].business_transaction_id}`;
+    await audit(tx,u.id,'void','finance_journal',id,{reason,journal_number:rows[0].journal_number});
+    return {id,status:'void'};
+   });
+   return NextResponse.json({journal:result});
   }
   if(action==='create-journal'){
    if(!(await allowed(u.id,'finance.journals.create')))return fail('Forbidden',403);
@@ -268,11 +339,31 @@ export async function POST(req:Request){
    });
    return NextResponse.json({journal:row});
   }
+  if(['create-tax-code','update-tax-code','deactivate-tax-code'].includes(action)){
+   if(!(await allowed(u.id,'finance.tax.manage')))return fail('Forbidden',403);
+   const id=str(b.id,80),code=str(b.code,40),name=str(b.name,160),type=str(b.tax_type,30),rate=num(b.rate),account=str(b.tax_account_id,80)||null,start=str(b.effective_from,10)||null,end=str(b.effective_to,10)||null;
+   if(action!=='deactivate-tax-code'&&(!code||!name||!['vat_in','vat_out','withholding','income_tax','other'].includes(type)||!Number.isFinite(rate)||rate<0||rate>100||(start&&!validDate(start))||(end&&!validDate(end))||(start&&end&&end<start)))return fail('Data kode pajak tidak valid.');
+   const result=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    if(action==='deactivate-tax-code')return tx`UPDATE finance_tax_codes SET is_active=false WHERE id=${id}::uuid AND organization_id=${oid} RETURNING id,code,name`;
+    if(account){const a=await tx`SELECT id,account_type,is_active,is_postable FROM finance_accounts WHERE id=${account}::uuid AND organization_id=${oid}`;const expected=type==='vat_in'?'asset':type==='other'?null:'liability';if(!a.length||!a[0].is_active||!a[0].is_postable||(expected&&a[0].account_type!==expected))throw new Error('Akun pajak harus aktif dan dapat diposting; PPN keluaran memakai liabilitas, PPN masukan memakai aset.');}
+    if(rate>0&&!account)throw new Error('Kode pajak dengan tarif di atas nol wajib memiliki akun pajak.');
+    if(action==='update-tax-code')return tx`UPDATE finance_tax_codes SET code=${code},name=${name},tax_type=${type},rate=${rate},tax_account_id=${account}::uuid,effective_from=${start}::date,effective_to=${end}::date,is_active=${b.is_active!==false} WHERE id=${id}::uuid AND organization_id=${oid} RETURNING id,code,name,tax_type,rate,is_active`;
+    return tx`INSERT INTO finance_tax_codes(organization_id,code,name,tax_type,rate,tax_account_id,effective_from,effective_to) VALUES(${oid},${code},${name},${type},${rate},${account}::uuid,${start}::date,${end}::date) RETURNING id,code,name,tax_type,rate,is_active`;
+   });
+   if(!result.length)return fail('Kode pajak tidak ditemukan.',404);
+   await audit(db,u.id,action,'finance_tax_code',result[0].id,result[0]);return NextResponse.json({taxCode:result[0]},{status:action==='create-tax-code'?201:200});
+  }
   if(action==='create-period'){
    if(!(await allowed(u.id,'finance.periods.manage')))return fail('Forbidden',403);
    const year=num(b.fiscal_year),n=num(b.period_number),name=str(b.name,80),start=str(b.start_date,10),end=str(b.end_date,10);
    if(year<2000||year>2200||n<1||n>13||!name||!validDate(start)||!validDate(end)||end<start)return fail('Periode tidak valid.');
-   const rows=await db`INSERT INTO finance_periods(organization_id,fiscal_year,period_number,name,start_date,end_date) SELECT id,${year},${n},${name},${start}::date,${end}::date FROM organizations WHERE slug=${ORG} RETURNING id,name,status`;
+   const rows=await db.begin(async(tx:any)=>{
+    const oid=(await tx`SELECT id FROM organizations WHERE slug=${ORG}`)[0]?.id;if(!oid)throw new Error('Organisasi tidak ditemukan.');
+    const overlap=await tx`SELECT id,name FROM finance_periods WHERE organization_id=${oid} AND start_date<=${end}::date AND end_date>=${start}::date LIMIT 1`;
+    if(overlap.length)throw new Error('Rentang periode bertabrakan dengan periode '+overlap[0].name+'.');
+    return tx`INSERT INTO finance_periods(organization_id,fiscal_year,period_number,name,start_date,end_date) VALUES(${oid},${year},${n},${name},${start}::date,${end}::date) RETURNING id,name,status`;
+   });
    return NextResponse.json({period:rows[0]},{status:201});
   }
   if(action==='close-period'){
@@ -280,7 +371,9 @@ export async function POST(req:Request){
    const id=str(b.id,80);
    const rows=await db.begin(async(tx:any)=>{
     const openJournals=await tx`SELECT count(*)::int n FROM finance_journals j JOIN finance_periods p ON p.organization_id=j.organization_id AND j.journal_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND j.status IN ('draft','submitted','approved')`;
-    if(Number(openJournals[0]?.n||0)>0)throw new Error('Masih ada jurnal draft/menunggu persetujuan di periode ini.');
+    const openDocs=await tx`SELECT count(*)::int n FROM finance_documents d JOIN finance_periods p ON p.organization_id=d.organization_id AND d.document_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND d.status IN ('draft','submitted','approved')`;
+    const openSettlements=await tx`SELECT count(*)::int n FROM finance_settlements s JOIN finance_periods p ON p.organization_id=s.organization_id AND s.settlement_date BETWEEN p.start_date AND p.end_date WHERE p.id=${id}::uuid AND s.status='draft'`;
+    if(Number(openJournals[0]?.n||0)>0||Number(openDocs[0]?.n||0)>0||Number(openSettlements[0]?.n||0)>0)throw new Error('Masih ada jurnal, invoice/tagihan, atau penerimaan/pembayaran draft yang belum diselesaikan pada periode ini.');
     return tx`UPDATE finance_periods SET status='closed',closed_by=${u.id},closed_at=now() WHERE id=${id}::uuid AND organization_id=(SELECT id FROM organizations WHERE slug=${ORG}) AND status='open' RETURNING id,name,status`;
    });
    if(!rows.length)return fail('Periode tidak ditemukan atau sudah ditutup.',409);
