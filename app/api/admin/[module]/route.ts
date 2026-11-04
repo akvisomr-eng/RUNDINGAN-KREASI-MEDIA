@@ -205,10 +205,10 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
    if(s(b,'action')==='payroll_status'){
     if(!(await hasPermission(u.id,'hr.payroll.manage')))return err('Forbidden',403);
     const id=s(b,'payroll_id',80),next=s(b,'status',20);
-    if(!['approved','paid','void'].includes(next))return err('Status payroll tidak valid.');
+    if(!['approved','void'].includes(next))return err('Status payroll tidak valid. Pembayaran hanya boleh ditandai setelah jurnal pembayaran terposting.');
     const rows=await db`WITH r AS(UPDATE hr_payroll_runs r SET status=${next},approved_by=CASE WHEN ${next}='approved' THEN ${u.id} ELSE approved_by END,paid_at=CASE WHEN ${next}='paid' THEN NOW() ELSE paid_at END
       FROM organizations o WHERE r.organization_id=o.id AND o.slug=${ORG} AND r.id=${id}::uuid
-      AND ((r.status='draft' AND ${next} IN('approved','void')) OR (r.status='approved' AND ${next} IN('paid','void')))
+      AND ((r.status='draft' AND ${next} IN('approved','void')) OR (r.status='approved' AND ${next}='void'))
       RETURNING r.id,r.period_start,r.period_end,r.status,r.paid_at,r.business_transaction_id),
       t AS(UPDATE business_transactions SET status=CASE WHEN ${next}='paid' THEN 'paid' WHEN ${next}='approved' THEN 'approved' ELSE 'cancelled' END,updated_at=NOW() WHERE id=(SELECT business_transaction_id FROM r) RETURNING id)
       SELECT r.id,r.period_start,r.period_end,r.status,r.paid_at FROM r`;
@@ -237,14 +237,12 @@ export async function POST(req:Request,ctx:{params:Promise<{module:string}>}){
    }
    if(s(b,'action')==='movement'){
     if(!(await hasPermission(u.id,'inventory.stock.manage')))return err('Forbidden',403);
-    const item=s(b,'item_id',80),type=s(b,'movement_type',20),qty=Number(b.quantity),cost=Number(b.unit_cost??0),loc=s(b,'location_id',80)||null;
-    if(!item||!['opening','in','out'].includes(type)||!Number.isFinite(qty)||qty<=0||!Number.isFinite(cost)||cost<0)return err('Pergerakan stok tidak valid.');
-    const rows=await db`WITH o AS(SELECT id FROM organizations WHERE slug=${ORG}),locked_item AS(SELECT x.id,x.organization_id FROM inventory_items x JOIN o ON o.id=x.organization_id WHERE x.id=${item}::uuid AND x.is_active FOR UPDATE),stock AS(SELECT coalesce(sum(CASE WHEN m.movement_type IN('opening','in') THEN m.quantity WHEN m.movement_type='out' THEN -m.quantity ELSE 0 END),0) AS qty FROM inventory_movements m WHERE m.item_id=(SELECT id FROM locked_item)),i AS(INSERT INTO inventory_movements(organization_id,item_id,location_id,movement_type,quantity,unit_cost,reference,notes,created_by) SELECT o.id,x.id,${loc}::uuid,${type},${qty},${cost},${s(b,'reference',100)||null},${s(b,'notes',300)||null},${u.id} FROM o JOIN locked_item x ON x.organization_id=o.id CROSS JOIN stock st WHERE (${type}<>'out' OR st.qty>=${qty}) AND (${loc}::uuid IS NULL OR EXISTS(SELECT 1 FROM locations l WHERE l.id=${loc}::uuid AND l.organization_id=o.id AND l.deleted_at IS NULL)) RETURNING id,organization_id,item_id,movement_type,quantity,unit_cost,created_at),t AS(INSERT INTO business_transactions(organization_id,module_code,transaction_type,reference_no,description,transaction_date,status,amount,source_table,source_id,created_by) SELECT i.organization_id,'ENTERPRISE','inventory_movement','INV-'||i.id::text,'Inventory '+i.movement_type,i.created_at::date,'posted',i.quantity*i.unit_cost,'inventory_movements',i.id::text,${u.id} FROM i RETURNING id),linked AS(UPDATE inventory_movements SET business_transaction_id=(SELECT id FROM t) WHERE id=(SELECT id FROM i) RETURNING id,item_id,movement_type,quantity,created_at,business_transaction_id) SELECT * FROM linked`;
-    if(!rows.length)return err('Stok tidak cukup atau item/lokasi tidak valid.',409);await audit(db,u.id,'create','inventory_movement',String((rows[0] as {id:string}).id),{item_id:item,type,quantity:qty});return NextResponse.json({movement:rows[0]},{status:201});
+    return err('Posting pergerakan stok ditahan sampai adapter jurnal persediaan dan akun clearing terkonfigurasi. Gunakan alur PO dan penerimaan barang draft.',409);
    }
    if(s(b,'action')==='procurement_status'){
     if(!(await hasPermission(u.id,'procurement.requests.manage')))return err('Forbidden',403);
     const id=s(b,'request_id',80),next=s(b,'status',20);
+    if(next==='received')return err('Penerimaan tidak boleh diselesaikan dari Purchase Request. Buat PO dan Goods Receipt; posting stok menunggu adapter GL.',409);
     const rows=await db`WITH p AS(UPDATE procurement_requests p SET status=${next},updated_at=NOW()
       FROM organizations o WHERE p.organization_id=o.id AND o.slug=${ORG} AND p.id=${id}::uuid
       AND ((p.status='draft' AND ${next} IN('submitted','cancelled')) OR (p.status='submitted' AND ${next} IN('approved','rejected','cancelled')) OR (p.status='approved' AND ${next}='received'))
