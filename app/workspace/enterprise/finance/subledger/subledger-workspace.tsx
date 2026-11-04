@@ -30,7 +30,7 @@ export default function SubledgerWorkspace({permissions:p}:{permissions:{ar:bool
    if(m.error)throw new Error(m.error);if(d.error&&d.error!=='Forbidden')throw new Error(d.error);if(c.error&&c.error!=='Forbidden')throw new Error(c.error);
    setMaster(m);setDocs(d.documents||[]);setCashData(c);
   }catch(e){setMessage(e instanceof Error?e.message:'Gagal memuat data.');}
- },[docType]);
+ },[docType,tab]);
  useEffect(()=>{void refresh();},[refresh]);
  async function send(url:string,body:R){
   setBusy(true);setMessage('');
