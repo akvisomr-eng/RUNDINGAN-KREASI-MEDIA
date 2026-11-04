@@ -1,5 +1,19 @@
 -- Enterprise operational workspace foundation (Development first).
 -- Additive schema only. No existing production data or tables are changed.
+-- Normalize the restricted application privilege role across environments.
+-- Development may use this role directly; Production's runtime login inherits it.
+DO $
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rundingan_app_limited') THEN
+    CREATE ROLE rundingan_app_limited NOLOGIN;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rundingan_runtime_web') THEN
+    EXECUTE 'GRANT rundingan_app_limited TO rundingan_runtime_web';
+  END IF;
+END
+$;
+
 CREATE TABLE IF NOT EXISTS finance_accounts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id),
