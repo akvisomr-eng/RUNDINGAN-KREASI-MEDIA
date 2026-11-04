@@ -122,3 +122,7 @@ a.enterprise-area:hover{background:#e8e9df;border-color:#9ba88e}
 
 .ops-payroll-lines{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:10px}.ops-payroll-row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:12px;align-items:end;padding:12px;border:1px solid var(--line);background:#f8f7f2}.ops-payroll-row>strong{font-size:11px;font-weight:500;color:#46534b;padding-bottom:12px}
 @media(max-width:760px){.ops-payroll-row{grid-template-columns:1fr 1fr}.ops-payroll-row>strong{grid-column:1/-1;padding-bottom:0}}
+
+/* Unified modules, agents and report navigation */
+.ops-quick-links{display:flex;gap:14px;align-items:center;margin-left:auto;margin-right:12px}.ops-quick-links a{font-size:10px;color:#536a3d;border-bottom:1px solid #a8b39b;padding-bottom:4px}
+@media(max-width:760px){.ops-quick-links{margin:0;flex-wrap:wrap}}

@@ -1,0 +1,9 @@
+export type AgentDefinition = { code:string; name:string; domain:string; description:string; cadence:string; capabilities:string[] };
+export const AGENTS:AgentDefinition[] = [
+ {code:'finance-integrity',name:'Finance Integrity Agent',domain:'Finance & Accounting',description:'Memeriksa keseimbangan jurnal, jurnal draft yang tertunda, dan transaksi yang belum tertaut ke buku besar.',cadence:'Setiap hari dan sebelum tutup periode',capabilities:['balanced journals','draft aging','ledger linkage']},
+ {code:'people-operations',name:'People Operations Agent',domain:'HR & Payroll',description:'Memeriksa kelengkapan data pegawai, anomali payroll, dan status persetujuan.',cadence:'Setiap periode payroll',capabilities:['employee completeness','payroll status','payroll anomaly']},
+ {code:'inventory-control',name:'Inventory Control Agent',domain:'Inventory & Procurement',description:'Mendeteksi stok di bawah minimum, potensi stok negatif, dan pengadaan yang tertunda.',cadence:'Setiap hari',capabilities:['stock balance','reorder signal','procurement aging']},
+ {code:'crm-health',name:'CRM Relationship Agent',domain:'CRM',description:'Memeriksa kelengkapan data relasi bisnis dan potensi duplikasi kontak.',cadence:'Setiap minggu',capabilities:['contact completeness','duplicate signals','data quality']},
+ {code:'cms-editorial',name:'CMS & SEO Agent',domain:'Media & Website',description:'Memeriksa draft yang tertunda, metadata SEO, dan artikel publikasi yang belum lengkap.',cadence:'Setiap hari sebelum publikasi',capabilities:['editorial aging','SEO metadata','publishing hygiene']},
+ {code:'system-maintenance',name:'Application Care Agent',domain:'Website & Application',description:'Memeriksa koneksi database, versi migrasi, kelengkapan tabel, dan anomali operasional yang dapat diperiksa tanpa mengubah sistem.',cadence:'Setiap hari dan setelah deployment',capabilities:['database health','schema drift','service health','maintenance recommendations']}
+];
