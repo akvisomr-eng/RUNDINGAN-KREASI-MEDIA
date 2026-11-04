@@ -34,7 +34,7 @@ export default async function CrmPage() {
       <section className="crm-page-content">
         <div className="crm-page-title">
           <div><p className="auth-eyebrow">WORKSPACE / CRM / 01</p><h1>Relasi bisnis,<br /><em>terhubung.</em></h1></div>
-          <Link href="/workspace">← Workspace</Link>
+          <div className="crm-quick-links"><Link href="/workspace/reports">Laporan & cetak ↗</Link><Link href="/workspace/enterprise/agents">AI Agents ↗</Link><Link href="/workspace">← Workspace</Link></div>
         </div>
         <PartiesManager canCreate={canCreate} />
       </section>
