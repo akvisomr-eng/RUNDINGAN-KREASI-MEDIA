@@ -21,7 +21,7 @@ const requiredMigrations = [
 export async function GET() {
   const timestamp = new Date().toISOString();
   try {
-    const sql = getSql();
+    const sql:any = getSql();
     await sql`SELECT 1`;
     const [tableRows,migrationRows] = await Promise.all([
       sql`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`,
