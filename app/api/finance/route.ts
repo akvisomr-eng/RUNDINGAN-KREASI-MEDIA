@@ -126,6 +126,70 @@ export async function POST(req:Request){
  let b:Record<string,unknown>;try{b=await req.json();}catch{return fail('Invalid JSON.');}
  const action=str(b.action,50),db:any=getSql();
  try{
+  if(action==='seed-coa-template'){
+   if(!(await allowed(u.id,'finance.accounts.manage')))return fail('Forbidden',403);
+   const template=[
+    ['1000','ASET',null,'asset','debit',false,''],
+    ['1100','Aset Lancar','1000','asset','debit',false,''],
+    ['1110','Kas','1100','asset','debit',true,'operating'],
+    ['1120','Bank','1100','asset','debit',true,'operating'],
+    ['1130','Piutang Usaha','1100','asset','debit',true,'operating'],
+    ['1140','Persediaan','1100','asset','debit',true,'operating'],
+    ['1150','Biaya Dibayar di Muka','1100','asset','debit',true,'operating'],
+    ['1200','Aset Tidak Lancar','1000','asset','debit',false,''],
+    ['1210','Peralatan Produksi & Kantor','1200','asset','debit',true,'investing'],
+    ['1290','Akumulasi Penyusutan','1200','asset','credit',true,'investing'],
+    ['2000','LIABILITAS',null,'liability','credit',false,''],
+    ['2100','Utang Usaha','2000','liability','credit',true,'operating'],
+    ['2200','Utang Pajak','2000','liability','credit',true,'operating'],
+    ['2300','Utang Gaji & Honor','2000','liability','credit',true,'operating'],
+    ['2400','Uang Muka Pelanggan / Pendapatan Diterima di Muka','2000','liability','credit',true,'operating'],
+    ['3000','EKUITAS',null,'equity','credit',false,''],
+    ['3100','Modal Pemilik','3000','equity','credit',true,'financing'],
+    ['3200','Laba Ditahan','3000','equity','credit',true,'financing'],
+    ['3300','Laba Tahun Berjalan','3000','equity','credit',true,'financing'],
+    ['4000','PENDAPATAN',null,'revenue','credit',false,''],
+    ['4100','Pendapatan Academy','4000','revenue','credit',true,'operating'],
+    ['4200','Pendapatan Creative','4000','revenue','credit',true,'operating'],
+    ['4300','Pendapatan Event','4000','revenue','credit',true,'operating'],
+    ['4400','Pendapatan Media & Iklan','4000','revenue','credit',true,'operating'],
+    ['4500','Pendapatan Production','4000','revenue','credit',true,'operating'],
+    ['4600','Pendapatan Rental','4000','revenue','credit',true,'operating'],
+    ['4900','Pendapatan Lain-lain','4000','revenue','credit',true,'operating'],
+    ['5000','BEBAN POKOK PENDAPATAN',null,'expense','debit',false,''],
+    ['5100','Biaya Pengajar & Materi Academy','5000','expense','debit',true,'operating'],
+    ['5200','Biaya Talent & Kreatif','5000','expense','debit',true,'operating'],
+    ['5300','Biaya Langsung Event','5000','expense','debit',true,'operating'],
+    ['5400','Biaya Konten & Distribusi Media','5000','expense','debit',true,'operating'],
+    ['5500','Biaya Langsung Production','5000','expense','debit',true,'operating'],
+    ['5600','Biaya Langsung Rental & Perawatan','5000','expense','debit',true,'operating'],
+    ['6000','BEBAN OPERASIONAL',null,'expense','debit',false,''],
+    ['6100','Gaji & Tunjangan','6000','expense','debit',true,'operating'],
+    ['6200','Internet, Listrik & Utilitas','6000','expense','debit',true,'operating'],
+    ['6300','Pemasaran & Promosi','6000','expense','debit',true,'operating'],
+    ['6400','Sewa & Administrasi','6000','expense','debit',true,'operating'],
+    ['6500','Software, Cloud & AI API','6000','expense','debit',true,'operating'],
+    ['6600','Beban Penyusutan','6000','expense','debit',true,'operating'],
+    ['6700','Pajak, Perizinan & Kepatuhan','6000','expense','debit',true,'operating'],
+    ['6800','Biaya Bank & Administrasi Pembayaran','6000','expense','debit',true,'operating']
+   ] as const;
+   const result=await db.begin(async(tx:any)=>{
+    const org=await tx`SELECT id FROM organizations WHERE slug=${ORG}`;if(!org.length)throw new Error('Organisasi tidak ditemukan.');
+    let inserted=0;
+    for(const row of template){
+     const [code,name,parentCode,type,normal,postable,cashFlow]=row;
+     let parentId=null;
+     if(parentCode){const parent=await tx`SELECT id FROM finance_accounts WHERE organization_id=${org[0].id} AND code=${parentCode}`;if(!parent.length)throw new Error('Akun induk '+parentCode+' belum tersedia.');parentId=parent[0].id;}
+     const created=await tx`INSERT INTO finance_accounts(organization_id,code,name,parent_account_id,account_type,normal_balance,is_postable,cash_flow_category,account_group)
+      VALUES(${org[0].id},${code},${name},${parentId},${type},${normal},${postable},${cashFlow||null},${name})
+      ON CONFLICT(organization_id,code) DO NOTHING RETURNING id`;
+     inserted+=created.length;
+    }
+    return {inserted,total:template.length};
+   });
+   await audit(db,u.id,'seed_template','finance_accounts','chart-of-accounts',result);
+   return NextResponse.json({result});
+  }
   if(action==='create-account'||action==='update-account'||action==='deactivate-account'){
    if(!(await allowed(u.id,'finance.accounts.manage')))return fail('Forbidden',403);
    const id=str(b.id,80),code=str(b.code,30),name=str(b.name,160),type=str(b.account_type,20),normal=str(b.normal_balance,10),parent=str(b.parent_account_id,80)||null;
