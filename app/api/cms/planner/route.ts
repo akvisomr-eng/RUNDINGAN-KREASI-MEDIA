@@ -10,6 +10,12 @@ const fromWorkStatus: Record<string, Stage> = {
   draft: 'idea', in_progress: 'planned', review: 'drafting', approved: 'review', completed: 'approved_for_cms'
 };
 const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
+function validDate(value: string) {
+  if (!value) return true;
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + 'T00:00:00.000Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
 function parseBrief(raw: unknown) {
   if (typeof raw !== 'string') return {};
   try { return JSON.parse(raw) as Record<string, unknown>; } catch { return { summary: raw }; }
