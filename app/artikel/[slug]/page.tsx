@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     alternates: { canonical },
     openGraph: { type: 'article', title, description, url: canonical, publishedTime: article.published_at || undefined },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: { card: 'summary', title, description },
     robots: { index: true, follow: true },
   };
 }
@@ -59,7 +59,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     dateModified: article.updated_at || article.published_at,
     inLanguage: 'id-ID',
     publisher: { '@type': 'Organization', name: 'Rundingan Kreasi Media' },
-    mainEntityOfPage: `https://rundingan-kreasi-media.vercel.app/artikel/${article.slug}`,
+    mainEntityOfPage: `${SITE_URL}/artikel/${article.slug}`,
   };
 
   return (
