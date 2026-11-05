@@ -126,6 +126,7 @@ export default async function EnterpriseCorePage() {
           <div><p className="auth-eyebrow">APPLICATION AREAS</p><h2>Ruang administrasi</h2></div>
           <span>STATUS IMPLEMENTASI</span>
         </div>
+        <p className="enterprise-footnote">CRM & Relasi Bisnis dan CMS & SEO Studio dikelola sebagai modul mandiri dari Workspace utama. Akses dan integrasi datanya tetap terhubung ke Enterprise sesuai hak akses pengguna, tanpa menggandakan pintu masuk modul.</p>
         <div className="enterprise-areas">
           <Link href="/workspace/enterprise/access" className="enterprise-area">
             <span>01 / ACCESS CONTROL</span><strong>Identitas & hak akses</strong>
@@ -136,14 +137,6 @@ export default async function EnterpriseCorePage() {
             <span>02 / ORGANIZATION STRUCTURE</span><strong>Struktur organisasi & unit bisnis</strong>
             <small>{organization.business_units} unit bisnis · {organization.departments} departemen · {organization.locations} lokasi</small>
             <b>Ringkasan tersedia ↗</b>
-          </Link>
-          <Link href="/workspace/crm" className="enterprise-area">
-            <span>03 / CUSTOMER RELATIONSHIP</span><strong>CRM & relasi bisnis</strong>
-            <small>Direktori pelanggan dan pemasok</small><b>Buka modul ↗</b>
-          </Link>
-          <Link href="/cms" className="enterprise-area">
-            <span>04 / CONTENT MANAGEMENT</span><strong>CMS & SEO Studio</strong>
-            <small>Editorial, publikasi, metadata, dan audit SEO</small><b>Buka modul ↗</b>
           </Link>
           <Link href="/workspace/enterprise/finance" className="enterprise-area">
             <span>05 / FINANCE & ACCOUNTING</span><strong>Keuangan & akuntansi</strong><small>Chart of accounts, jurnal umum, dan pemeriksaan keseimbangan.</small><b>{canReadFinance ? "Buka modul ↗" : "Memerlukan izin Finance"}</b></Link>
