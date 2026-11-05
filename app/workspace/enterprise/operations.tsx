@@ -78,14 +78,34 @@ export function OperationsWorkspace({module,canManage}:{module:string;canManage:
     {module==='academy'?<><Field label="Instruktur / pengajar" name="instructor"/><Select label="Metode pembelajaran" name="delivery_mode" items={[{value:'onsite',label:'Tatap muka'},{value:'online',label:'Online'},{value:'hybrid',label:'Hybrid'}]}/><Field label="Kapasitas peserta" name="capacity" type="number"/><Field label="Durasi belajar (jam)" name="learning_hours" type="number" step="0.5"/></>:null}
     {module==='creative'?<><Field label="Nama klien / brand" name="client_name"/><Select label="Jenis deliverable" name="deliverable_type" items={['Branding','Graphic Design','Video','Copywriting','Campaign','Other'].map(x=>({value:x,label:x}))}/><Field label="Batas revisi" name="revision_rounds" type="number"/></>:null}
     {module==='event'?<><Field label="Jenis acara" name="event_type"/><Field label="Venue / lokasi" name="venue"/><Field label="Estimasi peserta" name="expected_attendees" type="number"/></>:null}
-    {module==='media'?<><Select label="Format konten" name="content_format" items={['Artikel','Podcast','Video','Short-form','Live','Newsletter'].map(x=>({value:x,label:x}))}/><Field label="Kanal distribusi" name="channel"/><Field label="Tahap editorial" name="editorial_stage" defaultValue="planning"/><Field label="Status hak cipta / izin" name="rights_status" defaultValue="pending_review"/></>:null}
+    {module==='media'?<>
+      <Select label="Format konten" name="content_format" items={['Artikel','Podcast','Video','Short-form','Live','Newsletter','Social Media Campaign'].map(x=>({value:x,label:x}))}/>
+      <Field label="Kanal distribusi" name="channel" defaultValue="YouTube, Instagram, TikTok"/>
+      <Field label="Content pillar" name="content_pillar" placeholder="Edukasi, storytelling, promosi, komunitas…"/>
+      <Field label="Target audiens" name="target_audience"/>
+      <Select label="Tujuan konten" name="content_goal" items={['Awareness','Engagement','Traffic','Lead Generation','Conversion','Community'].map(x=>({value:x,label:x}))}/>
+      <Field label="Platform tujuan" name="social_platforms" defaultValue="YouTube, Instagram, TikTok"/>
+      <Field label="Akun tujuan" name="social_account_handles" defaultValue="@rundingan | @rundingan.id"/>
+      <Field label="Judul YouTube" name="youtube_title"/>
+      <label className="ops-field">Deskripsi YouTube<textarea name="youtube_description" rows={3} maxLength={5000}/></label>
+      <label className="ops-field">Caption Instagram<textarea name="instagram_caption" rows={4} maxLength={2200}/></label>
+      <label className="ops-field">Caption TikTok<textarea name="tiktok_caption" rows={4} maxLength={2200}/></label>
+      <Field label="Hashtag (pisahkan dengan spasi)" name="hashtags"/>
+      <Field label="Call to action" name="call_to_action"/>
+      <Field label="URL aset video / gambar" name="asset_url"/>
+      <label className="ops-field">Sumber dan bukti hak aset<textarea name="asset_rights" rows={2} maxLength={1500}/></label>
+      <Select label="Status hak cipta / izin" name="rights_status" required items={[{value:'pending_review',label:'Menunggu verifikasi'},{value:'original',label:'Karya original'},{value:'licensed',label:'Lisensi tersedia'},{value:'cleared',label:'Sudah diverifikasi'}]}/>
+      <Field label="Jadwal publikasi (zona waktu browser)" name="scheduled_at" type="datetime-local"/>
+      <input type="hidden" name="platform_integration_status" value="not_connected"/>
+      <input type="hidden" name="publishing_mode" value="manual_until_oauth"/>
+    </>:null}
     {module==='production'?<><Select label="Jenis produksi" name="production_type" items={['Podcast','Video','Live Streaming','Commercial','Documentary','Other'].map(x=>({value:x,label:x}))}/><Field label="Lokasi shooting" name="shoot_location"/><Field label="Koordinator kru" name="crew_lead"/><Field label="Format output" name="delivery_format"/></>:null}
     <button disabled={busy}>Simpan pekerjaan / program</button>
    </form>:<p className="ops-empty">Akun Anda memiliki akses baca. Hubungi administrator untuk izin pengelolaan.</p>}
   </div>
   <div className="ops-section">
    <h2>Pipeline pekerjaan ({workItems.length})</h2>
-   <Table headers={['Referensi','Nama','Kategori','Penanggung jawab','Mulai','Tenggat','Anggaran','Status','Tindakan']} empty="Belum ada pekerjaan. Buat catatan pertama untuk memulai workflow modul." rows={workItems.map((x:Row)=>[x.reference_no,x.title,x.category,x.owner_name||'—',x.start_date?new Date(x.start_date).toLocaleDateString('id-ID'):'—',x.due_date?new Date(x.due_date).toLocaleDateString('id-ID'):'—',money(x.budget_amount),status(x.status),canManage?<>{x.status==='draft'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'in_progress')}>Mulai</button>:null}{x.status==='in_progress'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'review')}>Ajukan review</button>:null}{x.status==='review'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'approved')}>Setujui</button>:null}{x.status==='approved'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'completed')}>Selesaikan</button>:null}</>:'—'])}/>
+   <Table headers={module==='media'?['Referensi','Konten','Kategori','Platform','Content pillar','Jadwal / publikasi','Anggaran','Status editorial','Tindakan']:['Referensi','Nama','Kategori','Penanggung jawab','Mulai','Tenggat','Anggaran','Status','Tindakan']} empty="Belum ada pekerjaan. Buat catatan pertama untuk memulai workflow modul." rows={workItems.map((x:Row)=>[x.reference_no,x.title,x.category,module==='media'?(x.metadata?.social_platforms||x.metadata?.channel||'—'):x.owner_name||'—',module==='media'?(x.metadata?.content_pillar||'—'):x.start_date?new Date(x.start_date).toLocaleDateString('id-ID'):'—',module==='media'?(x.metadata?.scheduled_at||'Manual'):x.due_date?new Date(x.due_date).toLocaleDateString('id-ID'):'—',money(x.budget_amount),status(x.status),canManage?<>{x.status==='draft'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'in_progress')}>Mulai</button>:null}{x.status==='in_progress'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'review')}>Ajukan review</button>:null}{x.status==='review'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'approved')}>Setujui</button>:null}{x.status==='approved'?<button className="ops-link-button" disabled={busy} onClick={()=>void transition('work_item_status',x.id,'completed')}>Selesaikan</button>:null}</>:'—'])}/>
   </div>
  </>:null}
  </section></main>;
