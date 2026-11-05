@@ -9,7 +9,8 @@ export function ExportCsvButton() {
       if (!table) return '';
       const rows = Array.from(table.querySelectorAll('tr')).map(row =>
         Array.from(row.querySelectorAll('th,td')).map(cell => {
-          const value = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+          const raw = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+          const value = /^\s*[=+@-]/.test(raw) ? "'" + raw : raw;
           return '"' + value.replace(/"/g, '""') + '"';
         }).join(',')
       );
