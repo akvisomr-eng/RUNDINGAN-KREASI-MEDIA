@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth/server';
+import { hasPermission } from '@/lib/auth/permissions';
 
 export const dynamic = 'force-dynamic';
 const stages = ['idea', 'planned', 'drafting', 'review', 'approved_for_cms'] as const;
@@ -36,6 +38,9 @@ async function forward(request: Request, method: string, body?: unknown) {
   return fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
 }
 export async function GET(request: Request) {
+  const { data } = await auth.getSession();
+  if (!data?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(data.user.id, 'cms.posts.read'))) return fail('Forbidden', 403);
   const response = await forward(request, 'GET');
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return fail(data.error || 'Tidak dapat memuat rencana SEO.', response.status);
@@ -47,6 +52,9 @@ export async function GET(request: Request) {
   return NextResponse.json({ plans });
 }
 export async function POST(request: Request) {
+  const { data } = await auth.getSession();
+  if (!data?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(data.user.id, 'cms.posts.create'))) return fail('Forbidden', 403);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return fail('Invalid JSON body.'); }
   const title = typeof body.title === 'string' ? body.title.trim().slice(0, 180) : '';
@@ -82,6 +90,9 @@ export async function POST(request: Request) {
   return NextResponse.json({ plan: normalize(data.workItem || {}) }, { status: 201 });
 }
 export async function PATCH(request: Request) {
+  const { data } = await auth.getSession();
+  if (!data?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(data.user.id, 'cms.posts.update'))) return fail('Forbidden', 403);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return fail('Invalid JSON body.'); }
   const id = typeof body.id === 'string' ? body.id : '';
