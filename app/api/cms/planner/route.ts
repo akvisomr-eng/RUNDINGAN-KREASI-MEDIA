@@ -40,7 +40,10 @@ export async function GET(request: Request) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return fail(data.error || 'Tidak dapat memuat rencana SEO.', response.status);
   const items = Array.isArray(data.workItems) ? data.workItems : [];
-  const plans = items.filter((item: Record<string, unknown>) => item.category === 'SEO Content Plan' && item.metadata?.workflow === 'website_seo_planner').map(normalize);
+  const plans = items.filter((item: Record<string, unknown>) => {
+    const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata as Record<string, unknown> : {};
+    return item.category === 'SEO Content Plan' && metadata.workflow === 'website_seo_planner';
+  }).map(normalize);
   return NextResponse.json({ plans });
 }
 export async function POST(request: Request) {
