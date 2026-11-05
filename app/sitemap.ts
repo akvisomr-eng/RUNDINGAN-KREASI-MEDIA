@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { getSql } from '@/lib/db';
+import { SITE_URL } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://rundingan-kreasi-media.vercel.app';
+  const baseUrl = SITE_URL;
   const entries: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
   ];

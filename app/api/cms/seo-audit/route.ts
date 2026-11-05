@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     title: typeof body.title === 'string' ? body.title : '',
     slug: typeof body.slug === 'string' ? body.slug : '',
     content: typeof body.content === 'string' ? body.content : '',
+    excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
     seoTitle: typeof body.seoTitle === 'string' ? body.seoTitle : '',
     seoDescription: typeof body.seoDescription === 'string' ? body.seoDescription : '',
     focusKeyword: typeof body.focusKeyword === 'string' ? body.focusKeyword : '',
