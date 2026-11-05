@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return fail('Invalid JSON body.'); }
   const title = typeof body.title === 'string' ? body.title.trim().slice(0, 180) : '';
-  const summary = typeof body.description === 'string' ? body.description.trim().slice(0, 1000) : '';
+  const summary = typeof body.description === 'string' ? body.description.trim().slice(0, 900) : '';
   const keyword = typeof body.focus_keyword === 'string' ? body.focus_keyword.trim().slice(0, 120) : '';
   const intent = typeof body.search_intent === 'string' ? body.search_intent : 'informational';
   const priority = typeof body.priority === 'string' ? body.priority : 'normal';
@@ -63,17 +63,22 @@ export async function POST(request: Request) {
   if (title.length < 3 || !summary || !keyword || !['informational','commercial','transactional','navigational'].includes(intent) ||
       !['low','normal','high'].includes(priority) || !['low','medium','high'].includes(effort) ||
       !validDate(date)) return fail('Periksa kembali topik, ringkasan, keyword, intent, prioritas, usaha, dan tanggal.');
+  const topicCluster = typeof body.topic_cluster === 'string' ? body.topic_cluster.trim().slice(0, 160) : '';
+  const pillarTopic = typeof body.pillar_topic === 'string' ? body.pillar_topic.trim().slice(0, 180) : '';
+  const relevance = typeof body.business_relevance === 'string' ? body.business_relevance.trim().slice(0, 500) : '';
+  const internalLinks = typeof body.internal_link_opportunities === 'string' ? body.internal_link_opportunities.trim().slice(0, 800) : '';
+  const audience = typeof body.target_audience === 'string' ? body.target_audience.trim().slice(0, 300) : '';
   const brief = {
     workflow: 'website_seo_planner', summary, focus_keyword: keyword, search_intent: intent,
-    topic_cluster: body.topic_cluster || '', pillar_topic: body.pillar_topic || '',
-    priority, effort, business_relevance: body.business_relevance || '',
-    internal_link_opportunities: body.internal_link_opportunities || ''
+    topic_cluster: topicCluster, pillar_topic: pillarTopic, priority, effort,
+    business_relevance: relevance, internal_link_opportunities: internalLinks
   };
+  if (JSON.stringify(brief).length > 2800) return fail('Ringkasan dan catatan topik terlalu panjang. Ringkas brief agar dapat disimpan.');
   const response = await forward(request, 'POST', {
     action: 'create_work_item', title, category: 'SEO Content Plan',
     description: JSON.stringify(brief), due_date: date || null, budget_amount: 0,
-    content_pillar: String(body.topic_cluster || '').slice(0, 120),
-    content_goal: intent, target_audience: String(body.target_audience || '').slice(0, 300),
+    content_pillar: topicCluster.slice(0, 120),
+    content_goal: intent, target_audience: audience,
     editorial_stage: 'idea', delivery_format: effort, scheduled_at: date,
     publishing_mode: 'website_only'
   });
