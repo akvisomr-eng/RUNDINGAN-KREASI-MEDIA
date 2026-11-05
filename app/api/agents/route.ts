@@ -43,7 +43,7 @@ export async function POST(req:Request){
  try{
   if(code.startsWith('social-')){
    const rows=await sql`SELECT id,reference_no,title,status,metadata,updated_at FROM module_work_items
-     WHERE organization_id=(SELECT id FROM organizations WHERE slug=\${ORG})
+     WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
        AND module_code='MEDIA' AND category='Social Media Post'
      ORDER BY updated_at DESC LIMIT 200`;
    const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
@@ -80,7 +80,7 @@ export async function POST(req:Request){
     if(!items.length)findings.push({severity:'info',title:'Belum ada jadwal distribusi',detail:'Buat draft konten terlebih dahulu.'});
    }else if(code==='social-media-orchestrator'){
     const history=await sql`SELECT agent_code,result,created_at FROM agent_runs
-      WHERE organization_id=(SELECT id FROM organizations WHERE slug=\${ORG})
+      WHERE organization_id=(SELECT id FROM organizations WHERE slug=${ORG})
         AND agent_code IN ('social-content-quality','social-rights-safety','social-publishing-readiness')
         AND status='completed' AND created_at>NOW()-INTERVAL '24 hours'
       ORDER BY created_at DESC LIMIT 60`;
@@ -99,10 +99,10 @@ export async function POST(req:Request){
    const localInsight=code==='social-media-orchestrator'?await askLocalModel(agent.name,{items:items.length,findings,recommendations}):null;
    const runtime=localInsight?'local_model':'embedded_rules';
    const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),item_count:items.length,finding_count:findings.length,findings,recommendations,autonomous_scope:'social_content_review_only'};
-   await sql`UPDATE agent_runs SET runtime=\${runtime},status='completed',result=\${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=\${runId}::uuid`;
+   await sql`UPDATE agent_runs SET runtime=${runtime},status='completed',result=${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=${runId}::uuid`;
    await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data)
-     SELECT id,\${data.user.id},'run_agent','agent_run',\${runId},\${JSON.stringify({agent_code:code,item_count:items.length,finding_count:findings.length,runtime})}::jsonb
-     FROM organizations WHERE slug=\${ORG}`;
+     SELECT id,${data.user.id},'run_agent','agent_run',${runId},${JSON.stringify({agent_code:code,item_count:items.length,finding_count:findings.length,runtime})}::jsonb
+     FROM organizations WHERE slug=${ORG}`;
    return NextResponse.json({run_id:runId,...result});
   }
   const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION','rental-operations':'RENTAL'};
