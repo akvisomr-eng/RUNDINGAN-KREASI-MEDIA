@@ -81,7 +81,7 @@ export function OperationsWorkspace({module,canManage}:{module:string;canManage:
     {module==='media'?<>
       <Select label="Format konten" name="content_format" items={['Artikel','Podcast','Video','Short-form','Live','Newsletter','Social Media Campaign'].map(x=>({value:x,label:x}))}/>
       <Field label="Kanal distribusi" name="channel" defaultValue="YouTube, Instagram, TikTok"/>
-      <Field label="Content pillar" name="content_pillar" placeholder="Edukasi, storytelling, promosi, komunitas…"/>
+      <Field label="Content pillar" name="content_pillar"/>
       <Field label="Target audiens" name="target_audience"/>
       <Select label="Tujuan konten" name="content_goal" items={['Awareness','Engagement','Traffic','Lead Generation','Conversion','Community'].map(x=>({value:x,label:x}))}/>
       <Field label="Platform tujuan" name="social_platforms" defaultValue="YouTube, Instagram, TikTok"/>
