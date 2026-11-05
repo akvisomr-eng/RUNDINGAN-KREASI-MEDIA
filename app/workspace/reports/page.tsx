@@ -9,7 +9,7 @@ import {ExportCsvButton} from './export-csv-button';
 export const dynamic='force-dynamic';
 type Search={from?:string;to?:string;module?:string};
 const validDate=(v?:string)=>{if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(v))return null;const parsed=new Date(`${v}T00:00:00.000Z`);return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===v?v:null;};
-const money=(v:any,currency='IDR')=>new Intl.NumberFormat('id-ID',{style:'currency',currency,maximumFractionDigits:currency==='IDR'?0:2}).format(Number(v||0));
+const money=(v:any,currency='IDR')=>{const code=/^[A-Z]{3}$/.test(String(currency).toUpperCase())?String(currency).toUpperCase():'IDR';return new Intl.NumberFormat('id-ID',{style:'currency',currency:code,maximumFractionDigits:code==='IDR'?0:2}).format(Number(v||0));};
 function ReportTable({title,headers,rows,empty}:{title:string;headers:string[];rows:any[][];empty:string}){return <section className="report-section"><h2>{title}</h2>{rows.length?<div className="ops-table-wrap"><table className="ops-table"><thead><tr>{headers.map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{v}</td>)}</tr>)}</tbody></table></div>:<p className="ops-empty">{empty}</p>}</section>}
 export default async function ReportsPage({searchParams}:{searchParams:Promise<Search>}){
  const params=await searchParams,from=validDate(params.from),to=validDate(params.to),selectedModule=['ACADEMY','CREATIVE','EVENT','MEDIA','PRODUCTION'].includes((params.module||'').toUpperCase())?(params.module||'').toUpperCase():null,dateError=Boolean((params.from&&!from)||(params.to&&!to)||(from&&to&&from>to));
