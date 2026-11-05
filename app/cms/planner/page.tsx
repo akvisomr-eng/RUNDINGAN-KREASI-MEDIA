@@ -9,11 +9,15 @@ export const metadata = { title: 'SEO Content Planner | Rundingan Kreasi Media',
 export default async function SeoPlannerPage() {
   const { data } = await auth.getSession();
   if (!data?.user) redirect('/auth/sign-in');
-  const [canRead, canCreate, canUpdate] = await Promise.all([
+  const [canReadCms, canCreateCms, canUpdateCms, canReadMedia, canManageMedia] = await Promise.all([
     hasPermission(data.user.id, 'cms.posts.read'),
     hasPermission(data.user.id, 'cms.posts.create'),
     hasPermission(data.user.id, 'cms.posts.update'),
+    hasPermission(data.user.id, 'media.work.read'),
+    hasPermission(data.user.id, 'media.work.manage'),
   ]);
-  if (!canRead) return <main className="cms-shell"><section className="cms-panel" style={{ maxWidth: 680, margin: '12vh auto' }}><p className="cms-kicker">403 / AKSES TERBATAS</p><h1>SEO Planner belum dapat diakses.</h1><p>Halaman ini memerlukan izin cms.posts.read.</p><a href="/cms">Kembali ke CMS ↗</a></section></main>;
-  return <SeoPlannerWorkspace userName={data.user.name || data.user.email || 'Editor'} canCreate={canCreate} canUpdate={canUpdate} />;
+  if (!canReadCms || !canReadMedia) {
+    return <main className="cms-shell"><section className="cms-panel" style={{ maxWidth: 680, margin: '12vh auto' }}><p className="cms-kicker">403 / AKSES TERBATAS</p><h1>SEO Planner belum dapat diakses.</h1><p>Halaman ini memerlukan izin baca CMS dan modul MEDIA.</p><a href="/cms">Kembali ke CMS ↗</a></section></main>;
+  }
+  return <SeoPlannerWorkspace userName={data.user.name || data.user.email || 'Editor'} canCreate={canCreateCms && canManageMedia} canUpdate={canUpdateCms && canManageMedia} />;
 }
