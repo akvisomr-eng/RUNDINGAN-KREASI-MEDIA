@@ -179,7 +179,7 @@ export default function CmsWorkspace({
     <main className="cms-shell">
       <header className="cms-topbar">
         <a href="/" className="cms-brand"><span>R</span><strong>RUNDINGAN <small>CONTENT STUDIO</small></strong></a>
-        <div className="cms-user"><span>Workspace editorial</span><strong>{userName}</strong><a href="/workspace/reports">Laporan & cetak ↗</a><a href="/workspace/enterprise/agents">AI Agents ↗</a><a href="/workspace">Workspace ↗</a></div>
+        <div className="cms-user"><span>Workspace editorial</span><strong>{userName}</strong><a href="/cms/planner">SEO Content Planner ↗</a><a href="/workspace/reports">Laporan & cetak ↗</a><a href="/workspace/enterprise/agents">AI Agents ↗</a><a href="/workspace">Workspace ↗</a></div>
       </header>
       <section className="cms-intro">
         <div><p className="cms-kicker">CONTENT MANAGEMENT SYSTEM / V1</p><h1>Editorial <em>Workspace.</em></h1><p>Kelola draft artikel, siapkan metadata pencarian, dan jalankan pemeriksaan SEO multi-agent sebelum masuk ke tahap review editorial.</p></div>
