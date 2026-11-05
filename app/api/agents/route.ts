@@ -41,6 +41,70 @@ export async function POST(req:Request){
  const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
  const recommendations:string[]=[];
  try{
+  if(code.startsWith('social-')){
+   const rows=await sql`SELECT id,reference_no,title,status,metadata,updated_at FROM module_work_items
+     WHERE organization_id=(SELECT id FROM organizations WHERE slug=\${ORG})
+       AND module_code='MEDIA' AND category='Social Media Post'
+     ORDER BY updated_at DESC LIMIT 200`;
+   const findings:Array<{severity:string;title:string;detail:string;count?:number}>=[];
+   const items=rows as any[];
+   if(code==='social-content-quality'){
+    for(const item of items){
+     const m=item.metadata||{}, platforms=String(m.social_platforms||m.channel||'').toLowerCase();
+     const missing:string[]=[];
+     if(!platforms)missing.push('platform tujuan');
+     if(platforms.includes('youtube')){if(!String(m.youtube_title||'').trim())missing.push('judul YouTube');if(!String(m.youtube_description||'').trim())missing.push('deskripsi YouTube');}
+     if(platforms.includes('instagram')&&!String(m.instagram_caption||'').trim())missing.push('caption Instagram');
+     if(platforms.includes('tiktok')&&!String(m.tiktok_caption||'').trim())missing.push('caption TikTok');
+     if(!String(m.hashtags||'').trim())missing.push('hashtag');
+     if(missing.length)findings.push({severity:'warning',title:'Variasi konten belum lengkap · '+item.reference_no,detail:'Lengkapi: '+missing.join(', ')+'.'});
+    }
+    if(!items.length)findings.push({severity:'info',title:'Belum ada draft Social Media Post',detail:'Buat konten pada workspace Rundingan Media untuk memulai pemeriksaan.'});
+    if(items.length&&!findings.length)findings.push({severity:'success',title:'Variasi konten lengkap',detail:'Seluruh draft yang diperiksa memiliki field utama untuk platform yang dipilih.',count:items.length});
+   }else if(code==='social-rights-safety'){
+    for(const item of items){
+     const m=item.metadata||{},rights=String(m.rights_status||'pending_review');
+     if(!['original','licensed','cleared'].includes(rights))findings.push({severity:'warning',title:'Hak cipta menunggu verifikasi · '+item.reference_no,detail:'Status aset: '+rights+'. Jangan setujui atau publikasikan sebelum sumber dan izin aset diverifikasi.'});
+     if(!String(m.asset_rights||'').trim())findings.push({severity:'warning',title:'Bukti hak aset belum dicatat · '+item.reference_no,detail:'Tambahkan sumber aset, pemilik hak, lisensi, atau bukti izin yang relevan.'});
+     if(!String(m.asset_url||'').trim())findings.push({severity:'info',title:'Aset media belum ditautkan · '+item.reference_no,detail:'Tambahkan URL aset final dan pastikan akses file dapat digunakan oleh editor.'});
+    }
+    if(!items.length)findings.push({severity:'info',title:'Belum ada aset untuk diperiksa',detail:'Pemeriksaan hak cipta berjalan pada draft Social Media Post.'});
+    if(items.length&&!findings.length)findings.push({severity:'success',title:'Bukti hak aset tercatat',detail:'Tidak ditemukan status izin tertunda pada draft yang diperiksa.',count:items.length});
+   }else if(code==='social-publishing-readiness'){
+    for(const item of items){
+     const m=item.metadata||{};
+     if(!String(m.social_account_handles||'').trim())findings.push({severity:'warning',title:'Akun tujuan belum dipetakan · '+item.reference_no,detail:'Tentukan akun YouTube, Instagram, atau TikTok tujuan.'});
+     if(!String(m.scheduled_at||'').trim())findings.push({severity:'info',title:'Jadwal publikasi belum ditentukan · '+item.reference_no,detail:'Tambahkan jadwal lokal; ini hanya catatan perencanaan dan belum membuat job scheduler.'});
+     if(String(m.platform_integration_status||'not_connected')!=='connected')findings.push({severity:'warning',title:'OAuth platform belum terhubung · '+item.reference_no,detail:'Publishing API belum terhubung/terverifikasi. Publikasi tetap manual; agen tidak mengirim konten ke platform.'});
+    }
+    if(!items.length)findings.push({severity:'info',title:'Belum ada jadwal distribusi',detail:'Buat draft konten terlebih dahulu.'});
+   }else if(code==='social-media-orchestrator'){
+    const history=await sql`SELECT agent_code,result,created_at FROM agent_runs
+      WHERE organization_id=(SELECT id FROM organizations WHERE slug=\${ORG})
+        AND agent_code IN ('social-content-quality','social-rights-safety','social-publishing-readiness')
+        AND status='completed' AND created_at>NOW()-INTERVAL '24 hours'
+      ORDER BY created_at DESC LIMIT 60`;
+    const seen=new Set<string>();
+    for(const row of history as any[]){
+     if(seen.has(String(row.agent_code)))continue;seen.add(String(row.agent_code));
+     for(const finding of Array.isArray(row.result?.findings)?row.result.findings:[])findings.push({severity:finding.severity,title:String(row.agent_code)+': '+finding.title,detail:finding.detail,count:finding.count});
+    }
+    if(!history.length)findings.push({severity:'info',title:'Belum ada hasil agen spesialis sosial',detail:'Jalankan agen kualitas konten, hak cipta, dan kesiapan distribusi terlebih dahulu.'});
+   }
+   const recommendations=[
+    'Urutan review: kualitas copy → verifikasi hak cipta → kesiapan distribusi → persetujuan editor.',
+    'Akun dan publikasi YouTube/Instagram/TikTok belum terhubung melalui OAuth; jangan menganggap draft sebagai konten terjadwal atau terbit.',
+    'Publikasi otomatis hanya boleh diaktifkan setelah scope, token, batas API, dan audit aplikasi tiap platform diverifikasi.'
+   ];
+   const localInsight=code==='social-media-orchestrator'?await askLocalModel(agent.name,{items:items.length,findings,recommendations}):null;
+   const runtime=localInsight?'local_model':'embedded_rules';
+   const result={agent:agent.name,runtime,local_model_insight:localInsight,generated_at:new Date().toISOString(),item_count:items.length,finding_count:findings.length,findings,recommendations,autonomous_scope:'social_content_review_only'};
+   await sql`UPDATE agent_runs SET runtime=\${runtime},status='completed',result=\${JSON.stringify(result)}::jsonb,finished_at=NOW() WHERE id=\${runId}::uuid`;
+   await sql`INSERT INTO audit_logs(organization_id,actor_user_id,action,resource_type,resource_id,after_data)
+     SELECT id,\${data.user.id},'run_agent','agent_run',\${runId},\${JSON.stringify({agent_code:code,item_count:items.length,finding_count:findings.length,runtime})}::jsonb
+     FROM organizations WHERE slug=\${ORG}`;
+   return NextResponse.json({run_id:runId,...result});
+  }
   const moduleCode:Record<string,string>={'academy-operations':'ACADEMY','creative-operations':'CREATIVE','event-operations':'EVENT','media-operations':'MEDIA','production-operations':'PRODUCTION','rental-operations':'RENTAL'};
   if(moduleCode[code]){
    const codeValue=moduleCode[code];
