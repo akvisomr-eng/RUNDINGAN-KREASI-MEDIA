@@ -66,11 +66,12 @@ export function OperationsWorkspace({module,canManage}:{module:string;canManage:
  </>:null}
  {!loading&&['academy','creative','event','media','production'].includes(module)?<>
   <div className="ops-section">
-   <div className="ops-section-heading"><div><h2>Daftar pekerjaan & program</h2><p>Setiap pekerjaan terhubung ke shared transaction spine, audit log, dan pemantauan AI sesuai izin organisasi.</p></div><div className="ops-quick-links"><Link href={`/workspace/reports?module=${module.toUpperCase()}`}>Laporan & cetak ↗</Link><button type="button" className="ops-link-button" onClick={()=>window.print()}>Cetak halaman</button></div></div>
+ {module==='media'?<p className="ops-message" role="note">Mode saat ini: perencanaan, variasi caption, pemeriksaan hak cipta, dan persetujuan editorial. OAuth YouTube, Instagram, dan TikTok belum terhubung; konten belum dapat dipublikasikan atau dianalisis otomatis dari halaman ini.</p>:null}
+  <div className="ops-section-heading"><div><h2>Daftar pekerjaan & program</h2><p>Setiap pekerjaan terhubung ke shared transaction spine, audit log, dan pemantauan AI sesuai izin organisasi.</p></div><div className="ops-quick-links"><Link href={`/workspace/reports?module=${module.toUpperCase()}`}>Laporan & cetak ↗</Link><button type="button" className="ops-link-button" onClick={()=>window.print()}>Cetak halaman</button></div></div>
    {canManage?<form className="ops-form" onSubmit={submit}>
     <input type="hidden" name="action" value="create_work_item"/>
     <Field label="Nama program / pekerjaan" name="title" required/>
-    <Field label="Kategori" name="category" required defaultValue={module==='academy'?'Program pembelajaran':module==='creative'?'Creative brief':module==='event'?'Event':module==='media'?'Konten media':'Produksi'}/>
+    <Field label="Kategori" name="category" required defaultValue={module==='academy'?'Program pembelajaran':module==='creative'?'Creative brief':module==='event'?'Event':module==='media'?'Social Media Post':'Produksi'}/>
     <Field label="Deskripsi / brief" name="description"/>
     <Field label="Penanggung jawab" name="owner_name"/>
     <div className="ops-form-row"><Field label="Tanggal mulai" name="start_date" type="date"/><Field label="Tenggat / tanggal pelaksanaan" name="due_date" type="date"/></div>
@@ -95,7 +96,7 @@ export function OperationsWorkspace({module,canManage}:{module:string;canManage:
       <Field label="URL aset video / gambar" name="asset_url"/>
       <label className="ops-field">Sumber dan bukti hak aset<textarea name="asset_rights" rows={2} maxLength={1500}/></label>
       <Select label="Status hak cipta / izin" name="rights_status" required items={[{value:'pending_review',label:'Menunggu verifikasi'},{value:'original',label:'Karya original'},{value:'licensed',label:'Lisensi tersedia'},{value:'cleared',label:'Sudah diverifikasi'}]}/>
-      <Field label="Jadwal publikasi (zona waktu browser)" name="scheduled_at" type="datetime-local"/>
+      <Field label="Jadwal publikasi (waktu lokal)" name="scheduled_at" type="datetime-local"/>
       <input type="hidden" name="platform_integration_status" value="not_connected"/>
       <input type="hidden" name="publishing_mode" value="manual_until_oauth"/>
     </>:null}
