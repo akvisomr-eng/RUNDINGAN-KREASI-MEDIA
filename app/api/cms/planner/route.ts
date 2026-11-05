@@ -12,7 +12,7 @@ const fromWorkStatus: Record<string, Stage> = {
 const fail = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 function validDate(value: string) {
   if (!value) return true;
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value + 'T00:00:00.000Z');
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const date = typeof body.proposed_publish_date === 'string' ? body.proposed_publish_date : '';
   if (title.length < 3 || !summary || !keyword || !['informational','commercial','transactional','navigational'].includes(intent) ||
       !['low','normal','high'].includes(priority) || !['low','medium','high'].includes(effort) ||
-      (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) return fail('Periksa kembali topik, ringkasan, keyword, intent, prioritas, usaha, dan tanggal.');
+      !validDate(date)) return fail('Periksa kembali topik, ringkasan, keyword, intent, prioritas, usaha, dan tanggal.');
   const brief = {
     workflow: 'website_seo_planner', summary, focus_keyword: keyword, search_intent: intent,
     topic_cluster: body.topic_cluster || '', pillar_topic: body.pillar_topic || '',
