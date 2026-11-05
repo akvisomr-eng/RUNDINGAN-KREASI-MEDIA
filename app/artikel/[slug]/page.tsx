@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getSql } from '@/lib/db';
+import { SITE_URL } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +13,13 @@ type Article = {
   seo_title: string;
   seo_description: string;
   published_at: string | null;
+  updated_at: string | null;
 };
 
 async function getArticle(slug: string): Promise<Article | null> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT title, slug, excerpt, content, seo_title, seo_description, published_at
+    SELECT title, slug, excerpt, content, seo_title, seo_description, published_at, updated_at
     FROM cms_posts
     WHERE slug = ${slug} AND status = 'published'
     LIMIT 1
@@ -32,7 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const title = article.seo_title || article.title;
   const description = article.seo_description || article.excerpt;
-  const canonical = `https://rundingan-kreasi-media.vercel.app/artikel/${article.slug}`;
+  const canonical = `${SITE_URL}/artikel/${article.slug}`;
   return {
     title,
     description,
@@ -54,6 +56,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     headline: article.title,
     description: article.seo_description || article.excerpt,
     datePublished: article.published_at,
+    dateModified: article.updated_at || article.published_at,
+    inLanguage: 'id-ID',
     publisher: { '@type': 'Organization', name: 'Rundingan Kreasi Media' },
     mainEntityOfPage: `https://rundingan-kreasi-media.vercel.app/artikel/${article.slug}`,
   };
