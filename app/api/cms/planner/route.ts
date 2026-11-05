@@ -16,20 +16,13 @@ function validDate(value: string) {
   const parsed = new Date(value + 'T00:00:00.000Z');
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
-function parseBrief(raw: unknown) {
-  if (typeof raw !== 'string') return {};
-  try { return JSON.parse(raw) as Record<string, unknown>; } catch { return { summary: raw }; }
-}
 function normalize(item: Record<string, unknown>) {
-  const brief = parseBrief(item.description);
+  const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata as Record<string, unknown> : {};
   return {
     id: item.id, reference_no: item.reference_no, title: item.title,
-    description: typeof brief.summary === 'string' ? brief.summary : '',
+    description: typeof item.description === 'string' ? item.description : '',
     due_date: item.due_date, status: item.status, updated_at: item.updated_at,
-    metadata: {
-      ...((item.metadata && typeof item.metadata === 'object') ? item.metadata as Record<string, unknown> : {}),
-      ...brief, seo_status: fromWorkStatus[String(item.status)] || 'idea'
-    }
+    metadata: { ...metadata, seo_status: fromWorkStatus[String(item.status)] || metadata.seo_status || 'idea' }
   };
 }
 async function forward(request: Request, method: string, body?: unknown) {
@@ -47,7 +40,7 @@ export async function GET(request: Request) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return fail(data.error || 'Tidak dapat memuat rencana SEO.', response.status);
   const items = Array.isArray(data.workItems) ? data.workItems : [];
-  const plans = items.filter((item: Record<string, unknown>) => item.category === 'SEO Content Plan').map(normalize);
+  const plans = items.filter((item: Record<string, unknown>) => item.category === 'SEO Content Plan' && item.metadata?.workflow === 'website_seo_planner').map(normalize);
   return NextResponse.json({ plans });
 }
 export async function POST(request: Request) {
@@ -61,24 +54,23 @@ export async function POST(request: Request) {
   const effort = typeof body.effort === 'string' ? body.effort : 'medium';
   const date = typeof body.proposed_publish_date === 'string' ? body.proposed_publish_date : '';
   if (title.length < 3 || !summary || !keyword || !['informational','commercial','transactional','navigational'].includes(intent) ||
-      !['low','normal','high'].includes(priority) || !['low','medium','high'].includes(effort) ||
-      !validDate(date)) return fail('Periksa kembali topik, ringkasan, keyword, intent, prioritas, usaha, dan tanggal.');
+      !['low','normal','high'].includes(priority) || !['low','medium','high'].includes(effort) || !validDate(date)) {
+    return fail('Periksa kembali topik, ringkasan, keyword, intent, prioritas, usaha, dan tanggal.');
+  }
   const topicCluster = typeof body.topic_cluster === 'string' ? body.topic_cluster.trim().slice(0, 160) : '';
   const pillarTopic = typeof body.pillar_topic === 'string' ? body.pillar_topic.trim().slice(0, 180) : '';
   const relevance = typeof body.business_relevance === 'string' ? body.business_relevance.trim().slice(0, 500) : '';
   const internalLinks = typeof body.internal_link_opportunities === 'string' ? body.internal_link_opportunities.trim().slice(0, 800) : '';
   const audience = typeof body.target_audience === 'string' ? body.target_audience.trim().slice(0, 300) : '';
-  const brief = {
-    workflow: 'website_seo_planner', summary, focus_keyword: keyword, search_intent: intent,
-    topic_cluster: topicCluster, pillar_topic: pillarTopic, priority, effort,
-    business_relevance: relevance, internal_link_opportunities: internalLinks
-  };
-  if (JSON.stringify(brief).length > 2800) return fail('Ringkasan dan catatan topik terlalu panjang. Ringkas brief agar dapat disimpan.');
   const response = await forward(request, 'POST', {
-    action: 'create_work_item', title, category: 'SEO Content Plan',
-    description: JSON.stringify(brief), due_date: date || null, budget_amount: 0,
-    content_pillar: topicCluster.slice(0, 120),
-    content_goal: intent, target_audience: audience,
+    action: 'create_work_item', title, category: 'SEO Content Plan', description: summary,
+    due_date: date || null, budget_amount: 0,
+    workflow: 'website_seo_planner', focus_keyword: keyword, search_intent: intent,
+    topic_cluster: topicCluster, pillar_topic: pillarTopic, priority, effort,
+    target_audience: audience, business_relevance: relevance,
+    internal_link_opportunities: internalLinks, proposed_publish_date: date,
+    seo_status: 'idea', research_source: 'editor_seed',
+    content_pillar: topicCluster.slice(0, 120), content_goal: intent,
     editorial_stage: 'idea', delivery_format: effort, scheduled_at: date,
     publishing_mode: 'website_only'
   });
