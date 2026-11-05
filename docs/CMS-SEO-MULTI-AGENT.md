@@ -27,8 +27,8 @@
 ## Important boundaries
 - V1 creates drafts only. It does not publish, schedule, or silently modify public content.
 - CMS page and API routes enforce Neon Auth sessions and database-backed permissions. Draft updates are scoped to the creator.
-- SEO findings are rule-based heuristics, not live Google Search Console data, ranking predictions, or guarantees.
-- The current agent implementation does not call a generative AI provider. It is a deterministic multi-agent audit foundation. LLM research, SERP analysis, content briefs, competitor analysis, internal-link suggestions, schema recommendations, and GSC/Analytics integrations require provider credentials and separately approved integrations.
+- SEO audit findings and the metadata draft generator use deterministic local heuristics; they do not call an LLM, search engine, Google Search Console, or external API. Metadata suggestions are explicitly marked for editor review and are not ranking predictions or guarantees.
+- The metadata generator coordinates three focused local checks: keyword discovery, search-title shaping, and meta-description shaping. The six existing SEO agents remain audit checks. True LLM generation, live SERP research, competitor analysis, and GSC/Analytics integrations still require a configured provider/connector and separate validation.
 - Migrations are additive and non-destructive. Production migration must be applied only after development verification and the project's normal database release process.
 - No production migration is run by this PR.
 
