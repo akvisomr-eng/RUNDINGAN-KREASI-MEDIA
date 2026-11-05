@@ -2,6 +2,7 @@ export type SeoInput = {
   title: string;
   slug: string;
   content: string;
+  excerpt?: string;
   seoTitle: string;
   seoDescription: string;
   focusKeyword: string;
