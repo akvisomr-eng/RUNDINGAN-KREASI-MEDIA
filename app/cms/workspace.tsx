@@ -118,6 +118,31 @@ export default function CmsWorkspace({
   }
 
 
+  async function generateMetadata() {
+    setBusy(true); setMessage('');
+    try {
+      const response = await fetch('/api/cms/seo-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Generator metadata gagal dijalankan.');
+      const draft = data.draft;
+      setForm(current => ({
+        ...current,
+        focusKeyword: draft.focusKeyword || current.focusKeyword,
+        seoTitle: draft.seoTitle || current.seoTitle,
+        seoDescription: draft.seoDescription || current.seoDescription,
+      }));
+      setReport(null);
+      setMessage('Draf metadata berhasil dibuat oleh 3 pemeriksa lokal. ' + draft.disclaimer);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Generator metadata gagal dijalankan.');
+    } finally { setBusy(false); }
+  }
+
+
   async function publishPost(id: string, title: string) {
     setBusy(true); setMessage('');
     try {
@@ -188,6 +213,7 @@ export default function CmsWorkspace({
               </>
             ) : <p className="cms-empty">Metadata tersedia dalam mode baca setelah artikel dipilih.</p>}
             {canAudit && <button className="cms-button cms-button-outline" disabled={busy || !form.title.trim() || !form.content.trim()} onClick={audit}>{busy ? 'Memproses…' : 'Jalankan 6 SEO Agents'}</button>}
+            {canAudit && <button className="cms-button cms-button-outline" disabled={busy || !form.title.trim() || form.content.trim().length < 20} onClick={generateMetadata}>{busy ? 'Menyusun metadata…' : 'Buat rekomendasi metadata'}</button>}
           </section>
           <section className="cms-panel cms-agents-panel">
             <div className="cms-panel-heading"><div><p className="cms-kicker">03 / MULTI-AGENT</p><h2>SEO intelligence</h2></div><span className="cms-agent-count">06</span></div>
