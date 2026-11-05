@@ -38,13 +38,13 @@ async function forward(request: Request, method: string, body?: unknown) {
   return fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
 }
 export async function GET(request: Request) {
-  const { data } = await auth.getSession();
-  if (!data?.user) return fail('Unauthorized', 401);
-  if (!(await hasPermission(data.user.id, 'cms.posts.read'))) return fail('Forbidden', 403);
+  const { data: sessionData } = await auth.getSession();
+  if (!sessionData?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(sessionData.user.id, 'cms.posts.read'))) return fail('Forbidden', 403);
   const response = await forward(request, 'GET');
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) return fail(data.error || 'Tidak dapat memuat rencana SEO.', response.status);
-  const items = Array.isArray(data.workItems) ? data.workItems : [];
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return fail(payload.error || 'Tidak dapat memuat rencana SEO.', response.status);
+  const items = Array.isArray(payload.workItems) ? payload.workItems : [];
   const plans = items.filter((item: Record<string, unknown>) => {
     const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata as Record<string, unknown> : {};
     return item.category === 'SEO Content Plan' && metadata.workflow === 'website_seo_planner';
@@ -52,9 +52,9 @@ export async function GET(request: Request) {
   return NextResponse.json({ plans });
 }
 export async function POST(request: Request) {
-  const { data } = await auth.getSession();
-  if (!data?.user) return fail('Unauthorized', 401);
-  if (!(await hasPermission(data.user.id, 'cms.posts.create'))) return fail('Forbidden', 403);
+  const { data: sessionData } = await auth.getSession();
+  if (!sessionData?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(sessionData.user.id, 'cms.posts.create'))) return fail('Forbidden', 403);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return fail('Invalid JSON body.'); }
   const title = typeof body.title === 'string' ? body.title.trim().slice(0, 180) : '';
@@ -85,21 +85,21 @@ export async function POST(request: Request) {
     editorial_stage: 'idea', delivery_format: effort, scheduled_at: date,
     publishing_mode: 'website_only'
   });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) return fail(data.error || 'Rencana gagal disimpan.', response.status);
-  return NextResponse.json({ plan: normalize(data.workItem || {}) }, { status: 201 });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return fail(payload.error || 'Rencana gagal disimpan.', response.status);
+  return NextResponse.json({ plan: normalize(payload.workItem || {}) }, { status: 201 });
 }
 export async function PATCH(request: Request) {
-  const { data } = await auth.getSession();
-  if (!data?.user) return fail('Unauthorized', 401);
-  if (!(await hasPermission(data.user.id, 'cms.posts.update'))) return fail('Forbidden', 403);
+  const { data: sessionData } = await auth.getSession();
+  if (!sessionData?.user) return fail('Unauthorized', 401);
+  if (!(await hasPermission(sessionData.user.id, 'cms.posts.update'))) return fail('Forbidden', 403);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return fail('Invalid JSON body.'); }
   const id = typeof body.id === 'string' ? body.id : '';
   const stage = typeof body.seo_status === 'string' ? body.seo_status as Stage : 'idea';
   if (!id || !stages.includes(stage)) return fail('ID atau status rencana tidak valid.');
   const response = await forward(request, 'POST', { action: 'work_item_status', work_item_id: id, status: toWorkStatus[stage] });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) return fail(data.error || 'Status rencana gagal diperbarui.', response.status);
-  return NextResponse.json({ plan: data.workItem ? normalize(data.workItem) : null });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return fail(payload.error || 'Status rencana gagal diperbarui.', response.status);
+  return NextResponse.json({ plan: payload.workItem ? normalize(payload.workItem) : null });
 }
