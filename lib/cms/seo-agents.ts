@@ -112,3 +112,89 @@ export function runSeoAgents(input: SeoInput) {
     disclaimer: 'Audit otomatis berbasis aturan dan heuristik. Ini bukan data ranking Google, bukan jaminan posisi pencarian, dan tetap perlu tinjauan editor.',
   };
 }
+
+
+export type SeoMetadataDraft = {
+  focusKeyword: string;
+  seoTitle: string;
+  seoDescription: string;
+  runtime: 'embedded_rules';
+  agents: Array<{ agent: string; status: 'ready' | 'warning'; note: string }>;
+  disclaimer: string;
+};
+
+const SEO_STOP_WORDS = new Set([
+  'yang','dan','di','ke','dari','untuk','dengan','pada','dalam','atau','ini','itu','sebagai','oleh','karena',
+  'adalah','akan','dapat','bisa','lebih','juga','agar','cara','tentang','hingga','antara','saat','para','bagi',
+  'the','and','for','with','from','this','that','into','your','how','what','why','when','are','is','of','to','in'
+]);
+
+function cleanSeoText(value: string) {
+  return value
+    .replace(/\x60{3}[\s\S]*?\x60{3}/g, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_~>#]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function chooseFocusKeyword(input: SeoInput, plainText: string) {
+  if (input.focusKeyword.trim()) return input.focusKeyword.trim().slice(0, 80);
+  const titleTokens = words(cleanSeoText(input.title)).filter(token => token.length > 2 && !SEO_STOP_WORDS.has(token));
+  if (titleTokens.length >= 2) return titleTokens.slice(0, 3).join(' ');
+  const counts = new Map<string, number>();
+  const tokens = words(plainText).filter(token => token.length > 3 && !SEO_STOP_WORDS.has(token));
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const phrase = tokens[i] + ' ' + tokens[i + 1];
+    counts.set(phrase, (counts.get(phrase) || 0) + 1);
+  }
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return best || titleTokens[0] || '';
+}
+
+function fitSeoTitle(title: string) {
+  const normalized = cleanSeoText(title);
+  const candidate = normalized.length <= 60 ? normalized : normalized.slice(0, 57).replace(/\s+\S*$/, '').trim() + '…';
+  return candidate.slice(0, 60);
+}
+
+function fitMetaDescription(source: string, keyword: string) {
+  let text = cleanSeoText(source);
+  if (!text) text = 'Informasi dan panduan ' + keyword + ' dari Rundingan Kreasi Media.';
+  if (keyword && !text.toLocaleLowerCase('id-ID').includes(keyword.toLocaleLowerCase('id-ID'))) {
+    text = keyword + ': ' + text;
+  }
+  if (text.length > 160) {
+    const shortened = text.slice(0, 157).replace(/\s+\S*$/, '').trim();
+    text = shortened + '…';
+  }
+  return text.slice(0, 160);
+}
+
+/**
+ * Generates an editor-reviewable metadata draft using deterministic local heuristics.
+ * This function does not call an LLM, search engine, or external API.
+ */
+export function generateSeoMetadata(input: SeoInput): SeoMetadataDraft {
+  const plainText = cleanSeoText(input.content);
+  const keyword = chooseFocusKeyword(input, cleanSeoText(input.title) + ' ' + plainText);
+  const seoTitle = fitSeoTitle(input.seoTitle || input.title);
+  const descriptionSource = input.seoDescription || input.excerpt || plainText.slice(0, 220);
+  const seoDescription = fitMetaDescription(descriptionSource, keyword);
+  const agents = [
+    { agent: 'Keyword Discovery Agent', status: keyword ? 'ready' as const : 'warning' as const, note: keyword ? 'Memilih frasa dari keyword yang diberikan atau istilah dominan pada judul.' : 'Tidak cukup konteks untuk memilih keyword; editor perlu mengisinya.' },
+    { agent: 'Search Title Agent', status: seoTitle ? 'ready' as const : 'warning' as const, note: 'Menyusun judul pencarian dengan batas maksimal 60 karakter.' },
+    { agent: 'Meta Description Agent', status: seoDescription ? 'ready' as const : 'warning' as const, note: 'Menyusun ringkasan pencarian dengan batas maksimal 160 karakter.' },
+  ];
+  return {
+    focusKeyword: keyword,
+    seoTitle,
+    seoDescription,
+    runtime: 'embedded_rules',
+    agents,
+    disclaimer: 'Draf ini dibuat oleh generator heuristik lokal, bukan LLM atau data SERP/Google. Periksa akurasi, maksud pencarian, dan gaya editorial sebelum menyimpan atau menerbitkan.',
+  };
+}
