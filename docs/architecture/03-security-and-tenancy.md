@@ -30,11 +30,14 @@ Do not assume the existing Neon Auth setup automatically provides cross-project 
 
 For the initial shared specialist Neon project:
 - Use a distinct database for each specialist app.
-- Use a distinct login role/credential per app.
-- Grant each role CONNECT only to its assigned database and only required schema/table privileges.
-- Review PostgreSQL default PUBLIC privileges and revoke unnecessary cross-database CONNECT privileges.
+- Use a distinct runtime login role per app, scoped to its database with read/write data privileges only.
+- Use a separate migration role per app. It may create and change objects only in its own database/schema; it must not be a Neon administrator or bypass RLS.
+- Runtime roles must not have schema CREATE privileges.
+- Revoke PUBLIC CONNECT/TEMP database privileges where not required, then explicitly grant CONNECT only to the app's runtime and migration roles.
+- Revoke PUBLIC CREATE on application schemas. Grant schema CREATE only to the matching migration role.
+- Configure default privileges so objects created by the migration role grant only the required DML/sequence privileges to that app's runtime role.
+- Verify both positive access (own database) and negative access (other databases) on every environment.
 - Do not distribute a project owner or superuser credential to application runtimes.
-- Keep migration credentials separate from runtime credentials.
 - Use pooled connections for ordinary serverless request traffic and direct connections for migrations.
 - Keep credentials in the matching Vercel project environment only.
 
