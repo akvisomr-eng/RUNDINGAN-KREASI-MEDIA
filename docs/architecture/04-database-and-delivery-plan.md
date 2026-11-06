@@ -5,14 +5,34 @@
 | Neon project | PostgreSQL database | Application |
 |---|---|---|
 | Existing Enterprise Core project | Existing Core database | Enterprise Core |
-| New specialist project | `db_media` | RUNDINGAN MEDIA |
-| New specialist project | `db_academy` | RUNDINGAN ACADEMY |
-| New specialist project | `db_rental` | RUNDINGAN RENTAL |
-| New specialist project | `db_production` | RUNDINGAN PRODUCTION |
-| New specialist project | `db_creative` | RUNDINGAN CREATIVE |
-| New specialist project | `db_event` | RUNDINGAN EVENT |
+| RUNDINGAN SPECIALIST APPS | `db_media` | RUNDINGAN MEDIA |
+| RUNDINGAN SPECIALIST APPS | `db_academy` | RUNDINGAN ACADEMY |
+| RUNDINGAN SPECIALIST APPS | `db_rental` | RUNDINGAN RENTAL |
+| RUNDINGAN SPECIALIST APPS | `db_production` | RUNDINGAN PRODUCTION |
+| RUNDINGAN SPECIALIST APPS | `db_creative` | RUNDINGAN CREATIVE |
+| RUNDINGAN SPECIALIST APPS | `db_event` | RUNDINGAN EVENT |
 
 The Core project's identity must be verified from the production runtime configuration before it is treated as authoritative. The existing similarly named Neon project that has not been assigned a role remains untouched pending a separate audit.
+
+## Initial provisioning record
+
+On 2026-11-06, the specialist Neon project was provisioned in `aws-ap-southeast-1` with PostgreSQL 18 and two branches:
+- `production`
+- `development`
+
+All six specialist databases were created on both branches. Each database has:
+- one runtime role scoped to that database with data read/write privileges;
+- one separate migration role scoped to that database;
+- no runtime schema-creation privilege;
+- no PUBLIC database CONNECT privilege;
+- explicit database CONNECT grants for its own runtime and migration roles;
+- default table and sequence privileges from the migration role to its matching runtime role.
+
+Positive and negative privilege checks confirmed that each runtime role can connect to its own database, cannot connect to the other specialist databases, cannot create schema objects, and is not a Neon administrator or RLS-bypass role. Migration roles can create objects only in their assigned database schema.
+
+The database schemas are intentionally still empty. No application Vercel environment variables or production application connections have been configured yet. Runtime and migration credentials must be retrieved only when their matching application environments are ready, then stored directly in the matching Vercel project as encrypted secrets. Never paste credentials into GitHub or documentation.
+
+The specialist project currently uses the Neon Free plan. Its storage, compute, and network-transfer budgets are shared by all six databases. Monitor usage before onboarding production workloads; move an app to its own Neon project if shared quotas or isolation requirements become limiting.
 
 ## Provisioning sequence
 
@@ -27,7 +47,7 @@ The Core project's identity must be verified from the production runtime configu
 9. Verify database isolation with positive and negative connection tests.
 10. Configure production credentials only after application UAT and an explicit release approval.
 
-Do not create the specialist Neon project or databases until quota, cost, ownership, and account limits are confirmed. Do not place any new app on the Enterprise Core production database.
+Do not place any new app on the Enterprise Core production database.
 
 ## Repository and deployment layout
 
