@@ -13,6 +13,9 @@ const requiredTables = [
   'finance_documents','finance_document_lines','finance_settlements','finance_settlement_allocations','finance_bank_statement_lines',
   'hr_employee_contracts','hr_attendance_records','hr_leave_requests','hr_payroll_components','hr_payroll_line_components','hr_payroll_settings',
   'inventory_categories','inventory_finance_settings','procurement_request_lines','purchase_orders','purchase_order_lines','goods_receipts','goods_receipt_lines',
+  'rental_equipment_units','rental_bookings','rental_booking_items','rental_checkouts','rental_maintenance','rental_incidents',
+  'production_projects','production_crew_members','production_crew_assignments','production_equipment_allocations','production_milestones','production_deliverables','production_revisions','production_expenses',
+  'academy_courses','academy_lessons','academy_instructors','academy_classes','academy_students','academy_enrollments','academy_attendance','academy_assessments','academy_assessment_results','academy_certificates',
 ];
 const requiredMigrations = [
   '20261103_001_custom_cms',
@@ -24,6 +27,7 @@ const requiredMigrations = [
   '20261104_008_finance_accounting_foundation',
   '20261104_009_ar_ap_cash_bank',
   '20261104_010_hr_inventory_procurement_depth',
+  '20261123_011_rental_production_academy',
 ];
 
 export async function GET() {

@@ -1,35 +1,52 @@
 import 'server-only';
-import { createNeonAuth } from '@neondatabase/auth/next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
+import { getSupabaseEnv } from '@/lib/supabase/env';
 
-type NeonAuthInstance = ReturnType<typeof createNeonAuth>;
+export type AppUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  user_metadata: Record<string, unknown>;
+};
 
-let authInstance: NeonAuthInstance | undefined;
-
-function getAuthInstance(): NeonAuthInstance {
-  const baseUrl = process.env.NEON_AUTH_BASE_URL;
-  const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
-
-  if (!baseUrl) {
-    throw new Error('NEON_AUTH_BASE_URL is not configured.');
-  }
-  if (!cookieSecret || cookieSecret.length < 32) {
-    throw new Error('NEON_AUTH_COOKIE_SECRET must contain at least 32 characters.');
-  }
-
-  authInstance ??= createNeonAuth({
-    baseUrl,
-    cookies: { secret: cookieSecret, sessionDataTtl: 300 },
+export async function createSupabaseServerClient() {
+  const { url, publishableKey } = getSupabaseEnv();
+  const cookieStore = await cookies();
+  return createServerClient(url, publishableKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          for (const { name, value, options } of cookiesToSet) {
+            cookieStore.set(name, value, options);
+          }
+        } catch {
+          // Server Components cannot write cookies. The proxy refreshes sessions.
+        }
+      },
+    },
   });
-
-  return authInstance;
 }
 
-// Defer environment validation until an auth method is actually used.
-// This prevents Next.js from failing while collecting route metadata at build time.
-export const auth = new Proxy({} as NeonAuthInstance, {
-  get(_target, property) {
-    const instance = getAuthInstance();
-    const value = Reflect.get(instance, property, instance);
-    return typeof value === 'function' ? value.bind(instance) : value;
+/** Compatibility-shaped, verified session accessor used by existing server routes. */
+export const auth = {
+  async getSession() {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.getUser();
+    const raw = data.user;
+    const user: AppUser | null = raw ? {
+      id: raw.id,
+      email: raw.email ?? null,
+      name: typeof raw.user_metadata?.full_name === 'string'
+        ? raw.user_metadata.full_name
+        : typeof raw.user_metadata?.name === 'string'
+          ? raw.user_metadata.name
+          : raw.email ?? null,
+      user_metadata: (raw.user_metadata ?? {}) as Record<string, unknown>,
+    } : null;
+    return { data: { user }, error };
   },
-});
+};

@@ -1,5 +1,5 @@
 -- 0001_core_organization_and_business_units.sql
--- Initial additive foundation. Apply only to the Neon development branch.
+-- Initial additive foundation. Apply to the approved Supabase development target only.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS schema_migrations (

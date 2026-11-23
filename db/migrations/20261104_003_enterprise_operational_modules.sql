@@ -1,7 +1,7 @@
--- Enterprise operational workspace foundation (Development first).
+-- Enterprise operational workspace foundation (Supabase development target first).
 -- Additive schema only. No existing production data or tables are changed.
 -- Normalize the restricted application privilege role across environments.
--- Development may use this role directly; Production's runtime login inherits it.
+-- Development may use this role directly; grant to the production runtime role only after its creation and review.
 DO $role$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rundingan_app_limited') THEN
@@ -195,7 +195,7 @@ GRANT SELECT, INSERT, UPDATE ON TABLE
   inventory_items,inventory_movements,procurement_requests
 TO rundingan_app_limited;
 
-GRANT USAGE ON SCHEMA neon_auth TO rundingan_app_limited;
-GRANT SELECT ON TABLE neon_auth.user TO rundingan_app_limited;
+GRANT USAGE ON SCHEMA auth TO rundingan_app_limited;
+GRANT SELECT ON TABLE auth.users TO rundingan_app_limited;
 GRANT SELECT, INSERT, UPDATE ON TABLE business_units, departments, locations, user_role_assignments TO rundingan_app_limited;
 GRANT SELECT, INSERT ON TABLE audit_logs TO rundingan_app_limited;

@@ -1,5 +1,5 @@
 -- 0002_shared_master_data_and_authorization.sql
--- Additive core tables. Apply only to the Neon development branch.
+-- Additive core tables. Apply to the approved Supabase development target only.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS departments (
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   PRIMARY KEY (role_id, permission_id)
 );
 
--- Neon Auth user IDs are stored as text; no coupling to managed internal tables.
+-- Supabase Auth user UUIDs are stored as text in the application RBAC tables; no passwords or Auth internals are copied.
 CREATE TABLE IF NOT EXISTS user_role_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),

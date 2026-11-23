@@ -1,5 +1,9 @@
-"use client";
+'use client';
 
-import { createAuthClient } from '@neondatabase/auth/next';
+import { createBrowserClient } from '@supabase/ssr';
+import { getSupabaseEnv } from '@/lib/supabase/env';
 
-export const authClient = createAuthClient();
+export function createSupabaseBrowserClient() {
+  const { url, publishableKey } = getSupabaseEnv();
+  return createBrowserClient(url, publishableKey);
+}

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './metro-fit.css';
-import '@neondatabase/auth-ui/css';
 import { Providers } from './providers';
 import { SITE_URL } from '@/lib/site-url';
 

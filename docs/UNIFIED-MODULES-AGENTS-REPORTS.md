@@ -14,7 +14,7 @@ The internal ENTERPRISE namespace is used only for shared ERP transactions and i
 
 ## Shared data architecture
 
-All modules use the same organization, Neon Postgres database, authentication, role assignments, permissions and audit log. The `business_transactions` table is the shared transaction spine. Finance journals, procurement requests, payroll runs and inventory movements can reference the same transaction identity. This avoids independent module databases and gives reports a common traceable reference.
+All modules use the same organization, Supabase PostgreSQL database, authentication, role assignments, permissions and audit log. The `business_transactions` table is the shared transaction spine. Finance journals, procurement requests, payroll runs and inventory movements can reference the same transaction identity. This avoids independent module databases and gives reports a common traceable reference.
 
 A transaction spine record is not itself a journal entry. Financial recognition still requires approved account mappings and balanced debit/credit journal lines. Inventory receipt, payroll payment, and supplier payment must not be inferred from a status label alone. The `posted` transaction state is reserved for accounting posting; completion of an operational work item is recorded on the work item and does not automatically post a journal.
 
@@ -78,7 +78,7 @@ Development has been updated and verified separately. Production migration is a 
 
 Before enabling the Enterprise workspaces on Production, complete the following in a controlled release window:
 
-1. Take and verify a Neon Production restore point.
+1. Take and verify a Supabase Production backup/restore point.
 2. Confirm the Production application login inherits `rundingan_app_limited` and has the exact grants from migrations 003 and 006.
 3. Apply migrations `20261103_001` through `20261104_007` in ascending order. Never skip a migration marker or run the sequence against a different branch.
 4. Verify the runtime login can read `schema_migrations`, `cms_posts`, `cms_seo_audits`, and `module_work_items`, and can perform only the writes explicitly granted by the migration set.
@@ -87,7 +87,7 @@ Before enabling the Enterprise workspaces on Production, complete the following 
 7. Configure a strong `CRON_SECRET` in the Production environment before relying on scheduled diagnostics. Verify an unauthenticated cron call returns 401 and an authorized dry-run completes before enabling the daily schedule.
 8. Review backup/restore, access logs, monitoring and the owner approval path for every irreversible business action.
 
-The migration sequence has been replayed successfully on a disposable Neon validation branch cloned from the Production baseline. The clone began with core markers 0001–0003; migrations 001–007 completed in order. Under the Production runtime login, the validation branch exposed all 21 required tables, all 7 required migration markers, the expected limited-role membership and the core module registry. This validation did not modify Production.
+Historical validation: the then-current migration sequence was replayed on a disposable Neon validation branch. This was not a Supabase test and does not populate the newly provisioned Supabase project. The clone began with core markers 0001–0003; migrations 001–007 completed in order. Under the Production runtime login, the validation branch exposed all 21 required tables, all 7 required migration markers, the expected limited-role membership and the core module registry. This validation did not modify Production.
 
 ## Known launch boundaries
 
