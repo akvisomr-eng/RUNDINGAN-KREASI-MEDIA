@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/server';
 import { hasPermission } from '@/lib/auth/permissions';
+import { LogoutButton } from '@/app/auth/logout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export default async function WorkspacePage() {
     <main className="workspace-shell">
       <header className="workspace-top">
         <a className="brand" href="/"><span className="brand-mark">R</span><span>RUNDINGAN<span className="brand-sub">KREASI MEDIA</span></span></a>
-        <span className="workspace-label">TEAM WORKSPACE / DEVELOPMENT</span>
+        <span className="workspace-label">TEAM WORKSPACE / DEVELOPMENT</span><LogoutButton/>
       </header>
       <section className="workspace-content">
         <p className="auth-eyebrow">IDENTITAS TERVERIFIKASI</p>

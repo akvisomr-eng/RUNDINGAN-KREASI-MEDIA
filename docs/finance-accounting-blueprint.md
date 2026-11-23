@@ -372,4 +372,4 @@ A feature is not production-accounting-ready until its database constraints, per
 ### Delivery status
 - Phase 1 foundation: COA, journal workflow, core ledger reports and accounting periods.
 - Phase 2 implementation branch: AR/AP documents, automatic GL posting, partial settlement, cash/bank register and bank reconciliation statement matching.
-- Migration 009 is additive and has been validated on an isolated Neon branch. It is not applied to Production until PR checks and controlled end-to-end validation pass.
+- Migration 009 is additive and has been validated on an isolated PostgreSQL validation database. It is not applied to Production until PR checks and controlled end-to-end validation pass.

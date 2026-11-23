@@ -4,7 +4,7 @@
 - One legal/business organization with six operating business units.
 - Shared master data and shared enterprise services; no duplicated module databases.
 - Initial deployment is single-organization. The schema is organization-scoped so a future SaaS tenant boundary can be introduced without treating external tenants as active today.
-- Modular monolith, API-first. Web, future Android, and desktop clients use the same server-side domain services and PostgreSQL source of truth.
+- Modular monolith, API-first. Web, future Android, and desktop clients use the same server-side domain services and Supabase PostgreSQL source of truth.
 
 ## Core boundaries
 - Core: organizations, business units, departments, locations, users, roles, permissions, audit.
@@ -17,7 +17,7 @@
 - Shared customer, supplier, employee, chart-of-account, and asset masters are not duplicated per module.
 - Use UUID primary keys, timestamptz audit fields, soft-delete only where business retention requires it, and explicit status transitions.
 - Do not enable row-level security until the authentication identity and authorization model are implemented and tested. Server-side authorization remains mandatory.
-- Production database is not a target for initial migrations. Develop and validate against the Neon development branch first.
+- The active Supabase parent project is Production. It is healthy and has no application tables or recorded migrations. A non-persistent Supabase preview branch named `development` was created with `with_data=false`; the connector currently reports its parent `project_ref` rather than a distinct branch connection target. Do not run migrations until a branch-specific target is independently resolved; keep the Production parent untouched.
 
 ## Client strategy
 - Web: Next.js application on Vercel.

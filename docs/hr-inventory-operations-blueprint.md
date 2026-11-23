@@ -17,4 +17,4 @@ Inventory/procurement: stock on hand by SKU/category/location, stock card, minim
 New/Insert, Save, Update, deactivate/soft-delete, First/Previous/Next/Last, Find/Search, filters, Submit, Approve, Reject, Post, Pay/Receive, Print, PDF/CSV/XLSX, Attachments and Audit History. Delete is restricted to unused drafts; posted or referenced records are never physically deleted.
 
 ## Release gates
-Test migration 010 on an isolated Neon branch, test workflows with synthetic data, verify role boundaries, organization isolation, report totals and balanced GL journals, then verify a Vercel preview for the exact commit before scheduling additive Production migration.
+Test migration 010 on an isolated Supabase development target, test workflows with synthetic data, verify role boundaries, organization isolation, report totals and balanced GL journals, then verify a Vercel preview for the exact commit before scheduling additive Production migration.
