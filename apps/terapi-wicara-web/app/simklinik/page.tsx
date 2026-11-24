@@ -16,7 +16,6 @@ import {
   LayoutDashboard,
   Lock,
   PackageSearch,
-  Printer,
   RefreshCw,
   ShieldCheck,
   UserCheck,
@@ -24,12 +23,12 @@ import {
 } from 'lucide-react';
 import {
   FALLBACK_SIMKLINIK_DATA,
-  formatRupiah,
   getBrowserSupabase,
   loadSimklinikSnapshot,
 } from '../../src/lib/supabaseClient';
 import { SimklinikRole, SimklinikSnapshot } from '../../src/lib/types';
 import FormulirCrud from '../../src/components/FormulirCrud';
+import ClinicOperatingDashboard from '../../src/components/ClinicOperatingDashboard';
 import { SIMKLINIK_SCHEMAS } from '../../src/lib/formSchemas';
 
 type SimMenuId =
@@ -241,6 +240,17 @@ export default function SimklinikDesktopWorkspacePage() {
     (s) => s.sync_status === 'SYNCED'
   ).length;
 
+  const actorName =
+    role === 'KEPALA_KLINIK'
+      ? 'dr. Ratna Kusumawati, Sp.KFR'
+      : role === 'ADMISI_RME'
+      ? 'Petugas Admisi & Rekam Medis'
+      : role === 'TERAPIS_WICARA'
+      ? 'Nadia Pramesti, S.Tr.Kes'
+      : role === 'KASIR_KEUANGAN'
+      ? 'Kasir & Keuangan Klinik'
+      : 'Tim Mutu & Pelaporan Dinkes';
+
   return (
     <div className="sim-shell">
       {/* Left Desktop Navigation Sidebar (10 Regulatory Menus) */}
@@ -376,156 +386,24 @@ export default function SimklinikDesktopWorkspacePage() {
             </div>
           )}
 
-          {/* MENU 1: DASHBOARD EKSEKUTIF & OPERASIONAL KLINIK */}
+          {/* MENU 1: DASBOR OPERASIONAL KLINIK (interaktif) */}
           {activeMenu === 'M1_DASHBOARD' && (
-            <>
-              <div className="grid-4">
-                <div className="card">
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
-                    Pasien Aktif Terdaftar RME
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
-                    {snapshot.patients.length}
-                  </div>
-                  <span className="badge badge-green" style={{ marginTop: 6 }}>
-                    100% Consent UU PDP Aktif
-                  </span>
-                </div>
-
-                <div className="card">
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
-                    Jadwal Sesi & Okupansi Ruang
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
-                    {snapshot.appointments.length} Sesi
-                  </div>
-                  <span className="badge badge-teal" style={{ marginTop: 6 }}>
-                    {snapshot.rooms.length} Ruang Kedap Suara (&lt;35 dB)
-                  </span>
-                </div>
-
-                <div className="card">
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
-                    Penerimaan Kasir Lunas
-                  </div>
-                  <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4, color: '#0f766e' }}>
-                    {formatRupiah(totalRevenuePaid)}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
-                    Pendapatan Paket Ditangguhkan: {formatRupiah(totalDeferredRevenue)}
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
-                    Status Bridging SATUSEHAT
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
-                    {syncedFhirCount}/{snapshot.satusehat_logs.length}
-                  </div>
-                  <span className="badge badge-green" style={{ marginTop: 6 }}>
-                    Org ID: {snapshot.clinic.satusehat_org_id}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid-2">
-                <div className="card">
-                  <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>
-                    Matriks Jadwal Harian Ruang & Terapis Wicara (Real-Time dari App Android)
-                  </h3>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Pasien & No. RM</th>
-                        <th>Terapis & Ruang</th>
-                        <th>Fokus Klinis</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {snapshot.appointments.map((ap) => (
-                        <tr key={ap.id}>
-                          <td>
-                            <div style={{ fontWeight: 700 }}>{ap.patient_name}</div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              {ap.medical_record_number} • Sesi ke-{ap.session_number}
-                            </div>
-                          </td>
-                          <td>
-                            <div>{ap.therapist_name}</div>
-                            <div style={{ fontSize: 11, color: '#0f766e', fontWeight: 700 }}>
-                              {ap.room_code}
-                            </div>
-                          </td>
-                          <td>{ap.disorder_focus}</td>
-                          <td>
-                            <span className="badge badge-teal">{ap.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="card">
-                  <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>
-                    Capaian Indikator Mutu Nasional (INM) Kemenkes Bulan Berjalan
-                  </h3>
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    {snapshot.quality_indicators.map((qi) => (
-                      <div key={qi.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                          <span style={{ fontWeight: 700 }}>
-                            {qi.indicator_code} — {qi.indicator_name}
-                          </span>
-                          <strong style={{ color: '#0f766e' }}>
-                            {qi.achieved_percentage}% (Target {qi.target_percentage}%)
-                          </strong>
-                        </div>
-                        <div
-                          style={{
-                            height: 8,
-                            background: '#e2e8f0',
-                            borderRadius: 999,
-                            marginTop: 5,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${Math.min(100, qi.achieved_percentage)}%`,
-                              height: '100%',
-                              background:
-                                qi.achieved_percentage >= qi.target_percentage
-                                  ? '#059669'
-                                  : '#d97706',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </>
+            <ClinicOperatingDashboard
+              snapshot={snapshot}
+              role={role}
+              actorName={actorName}
+              cloudConnected={cloudConnected}
+              onNavigate={(menuKey) => setActiveMenu(menuKey as SimMenuId)}
+              onRefresh={() => refreshData(role)}
+              onNotify={notify}
+            />
           )}
 
           {/* ==== MENU BERBASIS FORMULIR (CRUD penuh: entri, ubah, hapus, navigasi, cetak) ==== */}
           {activeSchema && (
             <FormulirCrud
               schema={activeSchema}
-              actorName={
-                role === 'KEPALA_KLINIK'
-                  ? 'dr. Ratna Kusumawati, Sp.KFR'
-                  : role === 'ADMISI_RME'
-                  ? 'Petugas Admisi & Rekam Medis'
-                  : role === 'TERAPIS_WICARA'
-                  ? 'Nadia Pramesti, S.Tr.Kes'
-                  : role === 'KASIR_KEUANGAN'
-                  ? 'Kasir & Keuangan Klinik'
-                  : 'Tim Mutu & Pelaporan Dinkes'
-              }
+              actorName={actorName}
               actorRole={role}
               bootstrapRows={
                 activeMenu === 'M2_ADMISI_JADWAL'
