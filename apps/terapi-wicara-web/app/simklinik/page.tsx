@@ -29,6 +29,8 @@ import {
 import { SimklinikRole, SimklinikSnapshot } from '../../src/lib/types';
 import FormulirCrud from '../../src/components/FormulirCrud';
 import ClinicOperatingDashboard from '../../src/components/ClinicOperatingDashboard';
+import SatusehatBridgeModule from '../../src/components/SatusehatBridgeModule';
+import RbacAuditModule from '../../src/components/RbacAuditModule';
 import { SIMKLINIK_SCHEMAS } from '../../src/lib/formSchemas';
 
 type SimMenuId =
@@ -58,14 +60,14 @@ const MENU_ITEMS: Array<{
   schemaKey?: string;
 }> = [
   { id: 'M1_DASHBOARD', label: '1. Dashboard Eksekutif', reg: 'KPI Klinik', Icon: LayoutDashboard },
-  { id: 'M2_ADMISI_JADWAL', label: '2. Admisi & Data Pasien', reg: 'Formulir RM • Permenkes 24/2022', Icon: UserCheck, schemaKey: 'pasien' },
-  { id: 'M3_RME_CPPT', label: '3. RME & CPPT SOAP', reg: 'Formulir SOAP • TTE', Icon: ClipboardList, schemaKey: 'soap' },
+  { id: 'M2_ADMISI_JADWAL', label: '2. Admisi & Consent', reg: 'Permenkes 24/2022', Icon: UserCheck, schemaKey: 'pasien' },
+  { id: 'M3_RME_CPPT', label: '3. RME & CPPT TTE', reg: 'ICD-10 / ICF', Icon: ClipboardList, schemaKey: 'soap' },
   { id: 'M4_SATUSEHAT', label: '4. Bridging SATUSEHAT', reg: 'HL7 FHIR R4', Icon: Globe },
-  { id: 'M5_SOP_PPK', label: '5. Master SOP & PPK', reg: 'Formulir SOP • Permenkes 81/2014', Icon: BookOpenCheck, schemaKey: 'sop' },
-  { id: 'M6_SDM_SIP_STR', label: '6. SDM, STR & SIP', reg: 'Formulir Kredensial • UU 17/2023', Icon: Users, schemaKey: 'sdm' },
-  { id: 'M7_KASIR_PAKET', label: '7. Kasir & Tagihan', reg: 'Formulir Kuitansi Resmi', Icon: CreditCard, schemaKey: 'kasir' },
-  { id: 'M8_SARPRAS_PPI', label: '8. Sarpras, MFK & PPI', reg: 'Formulir Inventaris • Permenkes 14/2021', Icon: PackageSearch, schemaKey: 'inventaris' },
-  { id: 'M9_MUTU_DINKES', label: '9. Mutu INM & Dinkes', reg: 'Formulir INM • Permenkes 34/2022', Icon: FileBarChart2, schemaKey: 'inm' },
+  { id: 'M5_SOP_PPK', label: '5. Master SOP & PPK', reg: 'Permenkes 81/2014', Icon: BookOpenCheck, schemaKey: 'sop' },
+  { id: 'M6_SDM_SIP_STR', label: '6. SDM, STR & SIP', reg: 'UU 17/2023 & TKK', Icon: Users, schemaKey: 'sdm' },
+  { id: 'M7_KASIR_PAKET', label: '7. Kasir & Paket Sesi', reg: 'Akuntansi Klinik', Icon: CreditCard, schemaKey: 'kasir' },
+  { id: 'M8_SARPRAS_PPI', label: '8. Sarpras, MFK & PPI', reg: 'Permenkes 14/2021', Icon: PackageSearch, schemaKey: 'inventaris' },
+  { id: 'M9_MUTU_DINKES', label: '9. Mutu INM & Dinkes', reg: 'Permenkes 34/2022', Icon: FileBarChart2, schemaKey: 'inm' },
   { id: 'M10_RBAC_AUDIT', label: '10. RBAC & Audit PDP', reg: 'UU PDP 27/2022', Icon: FileLock2 },
   { id: 'M11_TARIF', label: '11. Master Tarif Layanan', reg: 'Formulir Tarif • ICD-9-CM', Icon: CreditCard, schemaKey: 'tarif' },
   { id: 'M12_JADWAL', label: '12. Penjadwalan Sesi', reg: 'Formulir Jadwal & Kunjungan', Icon: Activity, schemaKey: 'jadwal' },
@@ -396,6 +398,29 @@ export default function SimklinikDesktopWorkspacePage() {
               onNavigate={(menuKey) => setActiveMenu(menuKey as SimMenuId)}
               onRefresh={() => refreshData(role)}
               onNotify={notify}
+            />
+          )}
+
+          {/* MENU 4: BRIDGING SATUSEHAT (modul fungsional) */}
+          {activeMenu === 'M4_SATUSEHAT' && (
+            <SatusehatBridgeModule
+              snapshot={snapshot}
+              actorName={actorName}
+              actorRole={role}
+              onRefresh={() => refreshData(role)}
+              onNotify={notify}
+            />
+          )}
+
+          {/* MENU 10: RBAC & AUDIT PDP (modul fungsional) */}
+          {activeMenu === 'M10_RBAC_AUDIT' && (
+            <RbacAuditModule
+              snapshot={snapshot}
+              role={role}
+              actorName={actorName}
+              onRefresh={() => refreshData(role)}
+              onNotify={notify}
+              onSwitchRole={(next) => setRole(next as SimklinikRole)}
             />
           )}
 
