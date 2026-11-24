@@ -10,3 +10,6 @@ out
 *.log
 .DS_Store
 
+
+# Paket perbaikan untuk diunggah manual ke repo SIMKLINIK-RME (akun lain)
+SIMKLINIK-WEB-FIX.zip
