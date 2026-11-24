@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  Bot,
   Activity,
   Award,
   Building2,
@@ -216,6 +217,10 @@ export default function PublicClinicWebsitePage() {
             <Link href="/enterprise" className="btn btn-dark">
               <Building2 size={16} />
               Enterprise HQ (Multi-Cabang)
+            </Link>
+            <Link href="/ai-command-center" className="btn btn-outline">
+              <Bot size={16} />
+              Pusat Komando AI
             </Link>
           </nav>
         </div>
@@ -731,6 +736,9 @@ export default function PublicClinicWebsitePage() {
             </Link>
             <Link href="/simklinik" style={{ color: '#5eead4', fontWeight: 700 }}>
               Login Staf SIMKLINIK
+            </Link>
+            <Link href="/ai-command-center" style={{ color: '#5eead4', fontWeight: 700 }}>
+              Pusat Komando AI
             </Link>
           </div>
         </div>

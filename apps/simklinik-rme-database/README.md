@@ -14,6 +14,16 @@ Seluruh skema, Row-Level Security (UU PDP No. 27/2022), 12 fungsi RPC `SECURITY 
 
 ---
 
+## 1a. 🤖 Multi-Agen AI Otonom & Formulir SIMKLINIK (Baru)
+
+Ekosistem kini dilengkapi **7 agen AI otonom** (keamanan, penguji, pengetahuan, perbaikan bug, analisis, riset, supervisor) dan **AI Companion** chatbot di website yang pengetahuannya ditanam lokal lalu diperkaya daring.
+
+SIMKLINIK juga **bukan lagi tampilan baca-saja**: 13 modul kini berupa formulir lengkap dengan navigasi **Entri Baru / Ubah / Hapus / Sebelumnya / Berikutnya / Cetak Laporan / Ekspor CSV**, sesuai Permenkes 24/2022, 81/2014, 34/2022, UU 17/2023, dan UU 27/2022.
+
+📄 Detail lengkap: [`MULTI-AGEN-AI-DAN-FORMULIR.md`](./MULTI-AGEN-AI-DAN-FORMULIR.md)
+
+---
+
 ## 1b. ⚡ Build & Deploy Tanpa PowerShell (Rekomendasi)
 
 Kedua proses produksi dapat dijalankan **tanpa `npm.ps1` / `npx.ps1`**, sehingga error `PSSecurityException` dan `Cannot find path 'C:\Windows\system32\...'` tidak akan pernah muncul lagi.

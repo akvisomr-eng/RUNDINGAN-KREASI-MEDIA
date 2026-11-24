@@ -1,0 +1,65 @@
+name: Siklus Multi-Agen AI (Keamanan, Uji, Pengetahuan, Analisis)
+
+# ==============================================================================
+# Penjadwal otonom: menjalankan siklus agen AI secara berkala tanpa campur tangan
+# manusia. Agen melakukan audit keamanan, pengujian sistem, regenerasi
+# pengetahuan, analisis kinerja, dan pemulihan bug — lalu menuliskan hasilnya
+# ke Supabase sehingga tampil di halaman /ai-command-center.
+#
+# Syarat (sekali saja):
+#   Settings > Secrets and variables > Actions > New repository secret
+#     AGENT_APP_URL   contoh: https://simklinik-terapi-wicara.vercel.app
+#     AGENT_RUNNER_SECRET  (opsional, samakan dengan env di Vercel)
+# ==============================================================================
+
+on:
+  schedule:
+    # Setiap 2 jam: audit keamanan + pengujian
+    - cron: '0 */2 * * *'
+    # Setiap hari 01:00 UTC: siklus penuh termasuk analisis & riset
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      agents:
+        description: 'Daftar agen dipisah koma (kosong = semua)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  cycle:
+    name: Jalankan agen otonom
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validasi konfigurasi
+        run: |
+          if [ -z "${{ secrets.AGENT_APP_URL }}" ]; then
+            echo "::notice title=AGENT_APP_URL belum diset::Tambahkan secret AGENT_APP_URL berisi URL produksi Vercel agar siklus agen berjalan otomatis. Siklus manual tetap bisa dilakukan dari halaman /ai-command-center."
+            exit 0
+          fi
+          echo "Target: ${{ secrets.AGENT_APP_URL }}"
+
+      - name: Picu siklus agen
+        if: ${{ secrets.AGENT_APP_URL != '' }}
+        run: |
+          set -euo pipefail
+          BODY='{"agents":[]}'
+          INPUT="${{ github.event.inputs.agents }}"
+          if [ -n "$INPUT" ]; then
+            AGENTS=$(echo "$INPUT" | tr -d ' ' | sed 's/[^,]*/"&"/g')
+            BODY="{\"agents\":[$AGENTS]}"
+          fi
+          echo "Body: $BODY"
+          curl --fail-with-body -sS -X POST "${{ secrets.AGENT_APP_URL }}/api/agents/run" \
+            -H "Content-Type: application/json" \
+            ${AGENT_RUNNER_SECRET:+-H "Authorization: Bearer $AGENT_RUNNER_SECRET"} \
+            -d "$BODY" | tee result.json
+          echo "### Hasil siklus agen" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat result.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        env:
+          AGENT_RUNNER_SECRET: ${{ secrets.AGENT_RUNNER_SECRET }}

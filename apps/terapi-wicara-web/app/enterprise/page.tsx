@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  Bot,
   Award,
   BookOpen,
   Building2,
@@ -25,6 +26,8 @@ import {
   loadEnterpriseHqSnapshot,
 } from '../../src/lib/enterpriseClient';
 import { getBrowserSupabase } from '../../src/lib/supabaseClient';
+import FormulirCrud from '../../src/components/FormulirCrud';
+import { ENTERPRISE_SCHEMAS } from '../../src/lib/enterpriseSchemas';
 
 type EnterpriseMenuId =
   | 'E1_HQ_OVERVIEW'
@@ -39,12 +42,14 @@ const EMS_MENUS: Array<{
   label: string;
   sub: string;
   Icon: React.ComponentType<{ size?: number }>;
+  schemaKey?: string;
 }> = [
   {
     id: 'E1_HQ_OVERVIEW',
     label: '1. Holding PT & Jaringan Cabang',
     sub: 'KBLI 86104 / Multi-Dinkes',
     Icon: Building2,
+    schemaKey: 'holding',
   },
   {
     id: 'E2_SIP_QUOTA_MULTIPROF',
@@ -63,6 +68,7 @@ const EMS_MENUS: Array<{
     label: '4. Buku Besar, Neraca & L/R',
     sub: 'Standar Akuntansi PSAK',
     Icon: Landmark,
+    schemaKey: 'jurnal',
   },
   {
     id: 'E5_PAYROLL_JASAMEDIS',
@@ -75,6 +81,7 @@ const EMS_MENUS: Array<{
     label: '6. Gudang Pusat & PO Alkes',
     sub: 'Izin PAK & NIE Kemenkes',
     Icon: PackageCheck,
+    schemaKey: 'po',
   },
 ];
 
@@ -91,6 +98,11 @@ export default function HealthcareEnterpriseHqPage() {
     '15 Set Probe Oromotor Steril + 50 Box Masker Medis & Pouch Autoclave PPI'
   );
   const [poTotal, setPoTotal] = useState('9450000');
+
+  const activeSchema = React.useMemo(() => {
+    const item = EMS_MENUS.find((m) => m.id === menu);
+    return item?.schemaKey ? ENTERPRISE_SCHEMAS[item.schemaKey] : null;
+  }, [menu]);
 
   const showNotice = (msg: string) => {
     setToast(msg);
@@ -279,6 +291,13 @@ export default function HealthcareEnterpriseHqPage() {
             <Stethoscope size={14} /> Buka Operasional SIMKLINIK Cabang
           </Link>
           <Link
+            href="/ai-command-center"
+            className="btn"
+            style={{ background: '#7c3aed', color: '#ffffff', fontSize: 12 }}
+          >
+            <Bot size={14} /> Pusat Komando Multi-Agen AI
+          </Link>
+          <Link
             href="/"
             className="btn"
             style={{ background: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 12 }}
@@ -346,6 +365,22 @@ export default function HealthcareEnterpriseHqPage() {
           )}
 
           {/* E1: HOLDING PT & MULTI-BRANCH CLINIC NETWORK */}
+          {activeSchema && (
+            <FormulirCrud
+              schema={activeSchema}
+              actorName="Direktur Utama / Holding Administrator"
+              actorRole="KEPALA_KLINIK"
+              bootstrapRows={
+                menu === 'E4_GL_NERACA_LABARUGI'
+                  ? (data.journals as unknown as Array<Record<string, unknown>>)
+                  : menu === 'E6_CENTRAL_PROCUREMENT'
+                  ? (data.purchase_orders as unknown as Array<Record<string, unknown>>)
+                  : (data.branches as unknown as Array<Record<string, unknown>>)
+              }
+              onSaved={() => refresh(branchFilter)}
+            />
+          )}
+
           {menu === 'E1_HQ_OVERVIEW' && (
             <>
               <div className="grid-4">
