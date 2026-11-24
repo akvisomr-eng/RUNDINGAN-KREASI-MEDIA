@@ -52,7 +52,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Validasi ketersediaan VERCEL_TOKEN
         run: |
@@ -63,7 +63,7 @@ jobs:
           echo "VERCEL_TOKEN tersedia."
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
