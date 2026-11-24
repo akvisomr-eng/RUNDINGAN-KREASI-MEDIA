@@ -16,6 +16,28 @@ Folder ini terisolasi sepenuhnya dari aplikasi inti repositori dan siap diekstra
 5. **Permenkes No. 34 Tahun 2022 (Akreditasi Klinik) & Permenkes No. 27 Tahun 2017 (PPI)**:
    - Gate wajib **INM Kemenkes** (Identifikasi 2 parameter, Hand Hygiene 5 Momen WHO, APD, Sterilitas Alat Oral Motor), **Log Sterilisasi Autoclave/DTT**, dan pelaporan **Insiden Keselamatan Pasien (IKP)**.
 
+## Struktur Navigasi Aplikasi (7 Tab)
+
+Aplikasi ini dirancang seperti aplikasi klinis sungguhan, bukan sekadar daftar formulir:
+
+| Tab | Isi |
+|---|---|
+| **Beranda** | Dasbor terapis: sesi berikutnya, statistik harian, aksi cepat, capaian SKP, catatan terakhir |
+| **Agenda** | Jadwal & ruang terapi, gate INM (identifikasi 2 parameter), verifikasi consent |
+| **Asesmen** | Instrumen baku 5 domain (Bahasa, Bicara/PCC, Suara/GRBAS, Irama/%SS, Menelan/IDDSI) |
+| **Terapi** | Sesi aktif + CPPT SOAP, kunci TTE, penghitungan akurasi target |
+| **Riwayat** | **Semua catatan yang Anda simpan**: filter per jenis, pencarian pasien/No. RM, status sinkronisasi, hapus |
+| **Pasien** | RME pasien, rencana terapi, riwayat SOAP, rujukan interprofesional |
+| **SOP/PPI** | SOP klinis, log sterilisasi, kepatuhan PPI & IKP |
+| **Profil** | Kredensial STR/SIP/IHS/SKP, **ubah PIN sesi klinis**, biometrik, kunci sesi, kelola data lokal |
+
+### Autentikasi & Persistensi
+- **PIN sesi klinis wajib** sebelum RME dapat dibuka (`@wicarasehat_pin_v1`). PIN bawaan `240826`, dapat diubah di tab Profil.
+- Sesi dapat dikunci manual dari *app bar* ("Kunci") atau dari tab Profil — sesuai prinsip *minimum necessary access* UU PDP.
+- Catatan klinis disimpan di perangkat lewat `src/services/localRecordStore.ts` (`@wicarasehat_rme_records_v1`) sehingga **tetap ada setelah aplikasi ditutup** dan tetap terbaca saat offline.
+- Sinkronisasi: `flushOfflineQueue()` mengirim antrean ke Supabase RME melalui RPC `tw_android_submit_*`; catatan yang gagal tetap di antrean.
+- Tab Riwayat menandai setiap catatan **TERKIRIM** atau **ANTREAN**.
+
 ## Menjalankan Aplikasi
 
 ```bash
