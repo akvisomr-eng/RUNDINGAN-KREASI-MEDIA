@@ -20,7 +20,11 @@ Ekosistem kini dilengkapi **7 agen AI otonom** (keamanan, penguji, pengetahuan, 
 
 SIMKLINIK juga **bukan lagi tampilan baca-saja**: 13 modul kini berupa formulir lengkap dengan navigasi **Entri Baru / Ubah / Hapus / Sebelumnya / Berikutnya / Cetak Laporan / Ekspor CSV**, sesuai Permenkes 24/2022, 81/2014, 34/2022, UU 17/2023, dan UU 27/2022.
 
-📄 Detail lengkap: [`MULTI-AGEN-AI-DAN-FORMULIR.md`](./MULTI-AGEN-AI-DAN-FORMULIR.md)
+**Penjadwal otonom sudah aktif di basis data.** Ketujuh agen tidak lagi menunggu operator menekan tombol: `pg_cron` mendaftarkan tugas agen sendiri setiap 15 menit dan membersihkan tugas menggantung setiap jam. Terbukti berjalan — job `postgres-tw_ai_dispatch_15m` sukses pada 24 Nov 2026 11:45:00 UTC dan membuat tugas `AUTO_DISPATCH` tanpa campur tangan manusia.
+
+> ⚠️ **Catatan pg_cron di Supabase:** job hanya dieksekusi bila namanya **diawali nama database** (`postgres-`). Job tanpa prefiks akan terdaftar dan tampak `active`, tetapi tidak pernah berjalan.
+
+📄 Detail lengkap: [`MULTI-AGEN-AI-DAN-FORMULIR.md`](./MULTI-AGEN-AI-DAN-FORMULIR.md) · [`HASIL-OTONOMI-AGEN.md`](./HASIL-OTONOMI-AGEN.md)
 
 ---
 
