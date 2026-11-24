@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -51,6 +52,7 @@ import {
   saveProfile,
   summarize,
 } from './src/services/localRecordStore';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AgendaScreen } from './src/screens/AgendaScreen';
 import { AssessmentScreen } from './src/screens/AssessmentScreen';
 import { ActiveSessionScreen } from './src/screens/ActiveSessionScreen';
@@ -76,7 +78,7 @@ const PIN_STORAGE_KEY = '@wicarasehat_pin_v1';
 const SESSION_KEY = '@wicarasehat_session_v1';
 const PIN_SEMENTARA = '240826';
 
-export default function App() {
+function WicaraSehatApp() {
   /* ----------------------------- Autentikasi ----------------------------- */
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -110,6 +112,19 @@ export default function App() {
   );
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabHistory = useRef<BottomTab[]>([]);
+
+  /**
+   * Pindah tab sambil mencatat riwayat, sehingga tombol Back Android
+   * berperilaku seperti aplikasi Android pada umumnya (kembali ke tab
+   * sebelumnya), bukan langsung menutup aplikasi.
+   */
+  const navigateTo = useCallback((next: BottomTab) => {
+    setCurrentTab((prev) => {
+      if (prev !== next) tabHistory.current.push(prev);
+      return next;
+    });
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -195,6 +210,41 @@ export default function App() {
     }
   }, [authenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * Tombol Back Android: kembali ke tab sebelumnya; bila sudah di Beranda,
+   * tekan dua kali untuk keluar (menghindari aplikasi tertutup tak sengaja
+   * saat terapis sedang mengisi catatan).
+   */
+  useEffect(() => {
+    if (!authenticated) return;
+
+    let exitArmed = false;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (tabHistory.current.length > 0) {
+        const prev = tabHistory.current.pop() as BottomTab;
+        setCurrentTab(prev);
+        exitArmed = false;
+        return true;
+      }
+      if (currentTab !== 'BERANDA') {
+        setCurrentTab('BERANDA');
+        exitArmed = false;
+        return true;
+      }
+      if (!exitArmed) {
+        exitArmed = true;
+        showToast('Tekan kembali sekali lagi untuk keluar aplikasi.');
+        setTimeout(() => {
+          exitArmed = false;
+        }, 2200);
+        return true;
+      }
+      return false;
+    });
+
+    return () => sub.remove();
+  }, [authenticated, currentTab, showToast]);
+
   /* ------------------------------ Login PIN ------------------------------ */
   const handleLogin = async () => {
     if (pinInput.length < 4) {
@@ -222,6 +272,7 @@ export default function App() {
     setAuthenticated(false);
     setPinInput('');
     setCurrentTab('BERANDA');
+    tabHistory.current = [];
   };
 
   /* --------------------------- Aksi penyimpanan -------------------------- */
@@ -459,18 +510,18 @@ export default function App() {
                   syncSource={syncSource}
                   offlineMode={offlineMode}
                   pendingQueueCount={pendingQueueCount}
-                  onOpenAgenda={() => setCurrentTab('AGENDA')}
-                  onOpenHistory={() => setCurrentTab('RIWAYAT')}
-                  onOpenPatients={() => setCurrentTab('RME_PASIEN')}
-                  onOpenCompliance={() => setCurrentTab('KEPATUHAN')}
+                  onOpenAgenda={() => navigateTo('AGENDA')}
+                  onOpenHistory={() => navigateTo('RIWAYAT')}
+                  onOpenPatients={() => navigateTo('RME_PASIEN')}
+                  onOpenCompliance={() => navigateTo('KEPATUHAN')}
                   onStartSession={(appt) => {
                     setActiveAppointment(appt);
                     setSelectedPatientId(appt.patient_id);
-                    setCurrentTab('SESI_SOAP');
+                    navigateTo('SESI_SOAP');
                   }}
                   onOpenAssess={(patientId) => {
                     setSelectedPatientId(patientId);
-                    setCurrentTab('ASESMEN');
+                    navigateTo('ASESMEN');
                   }}
                 />
               )}
@@ -498,11 +549,11 @@ export default function App() {
                   onStartSession={(appt) => {
                     setActiveAppointment(appt);
                     setSelectedPatientId(appt.patient_id);
-                    setCurrentTab('SESI_SOAP');
+                    navigateTo('SESI_SOAP');
                   }}
                   onOpenAssessment={(patientId) => {
                     setSelectedPatientId(patientId);
-                    setCurrentTab('ASESMEN');
+                    navigateTo('ASESMEN');
                   }}
                 />
               )}
@@ -561,12 +612,12 @@ export default function App() {
                   therapist={clinicalData.therapist}
                   onOpenAssessment={(ptId) => {
                     setSelectedPatientId(ptId);
-                    setCurrentTab('ASESMEN');
+                    navigateTo('ASESMEN');
                   }}
                   onOpenSoap={(ptId) => {
                     setActiveAppointment(null);
                     setSelectedPatientId(ptId);
-                    setCurrentTab('SESI_SOAP');
+                    navigateTo('SESI_SOAP');
                   }}
                   onSubmitReferral={async (payload) => {
                     const res = await submitInterprofessionalReferral(
@@ -630,7 +681,7 @@ export default function App() {
           {tabs.map(({ id, label, Icon, badge }) => {
             const active = currentTab === id;
             return (
-              <Pressable key={id} onPress={() => setCurrentTab(id)} style={styles.navTab}>
+              <Pressable key={id} onPress={() => navigateTo(id)} style={styles.navTab}>
                 <View style={[styles.navIconPill, active && styles.navIconPillActive]}>
                   <Icon size={17} color={active ? '#0F766E' : '#64748B'} />
                   {!!badge && badge > 0 && (
@@ -785,3 +836,19 @@ const styles = StyleSheet.create({
   navLabel: { fontSize: 9.5, fontWeight: '700', color: '#64748B', marginTop: 1 },
   navLabelActive: { color: '#0F766E', fontWeight: '800' },
 });
+
+/**
+ * Akar aplikasi: dibungkus penjaga kesalahan agar satu galat render tidak
+ * membuat aplikasi menjadi layar putih, dan data lokal tetap dapat diselamatkan.
+ */
+export default function App() {
+  return (
+    <ErrorBoundary
+      onReset={() => {
+        // Muat ulang layar tanpa menghapus data lokal.
+      }}
+    >
+      <WicaraSehatApp />
+    </ErrorBoundary>
+  );
+}

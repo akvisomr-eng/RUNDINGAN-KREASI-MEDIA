@@ -43,6 +43,13 @@ interface Agent {
   total_runs: number;
   successful_runs: number;
   last_run_at: string | null;
+  next_run_at?: string | null;
+  /** Tambahan dari snapshot: kedalaman antrean & indikator kehidupan agen. */
+  queue_depth?: number;
+  success_rate?: number | null;
+  last_status?: string | null;
+  is_overdue?: boolean;
+  silent_days?: number | null;
 }
 
 interface AgentRun {
@@ -110,10 +117,18 @@ interface Snapshot {
   security_findings: Finding[];
   security_score: number;
   knowledge_gaps: Gap[];
+  queue?: {
+    pending: number;
+    running: number;
+    stale: number;
+    oldest_pending_minutes: number;
+  };
   totals: {
     agents_active: number;
+    agents_degraded?: number;
     runs_pending: number;
     runs_done: number;
+    runs_failed?: number;
     chat_messages: number;
   };
 }
@@ -286,6 +301,55 @@ export default function AiCommandCenterPage() {
         </div>
       </div>
 
+      {/* Status antrean & penjadwal otonom */}
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+          <Activity size={16} color="#0f766e" />
+          <span style={{ fontWeight: 900, fontSize: 14 }}>Penjadwal Otonom</span>
+          <span
+            className={`badge ${
+              (data?.queue?.pending ?? 0) === 0
+                ? 'badge-green'
+                : (data?.queue?.stale ?? 0) > 0
+                ? 'badge-amber'
+                : 'badge-teal'
+            }`}
+            style={{ marginLeft: 'auto' }}
+          >
+            {(data?.queue?.pending ?? 0) === 0 ? 'Antrean bersih' : `${data?.queue?.pending ?? 0} tugas menunggu`}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700 }}>Menunggu</div>
+            <div style={{ fontSize: 21, fontWeight: 900 }}>{data?.queue?.pending ?? 0}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700 }}>Sedang Jalan</div>
+            <div style={{ fontSize: 21, fontWeight: 900 }}>{data?.queue?.running ?? 0}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700 }}>Menggantung</div>
+            <div style={{ fontSize: 21, fontWeight: 900, color: (data?.queue?.stale ?? 0) > 0 ? '#b45309' : undefined }}>
+              {data?.queue?.stale ?? 0}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 700 }}>Agen Degradasi</div>
+            <div style={{ fontSize: 21, fontWeight: 900, color: (data?.totals?.agents_degraded ?? 0) > 0 ? '#b45309' : undefined }}>
+              {data?.totals?.agents_degraded ?? 0}
+            </div>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6, marginTop: 10 }}>
+          Setiap siklus, sistem mendaftarkan sendiri tugas untuk agen yang jadwalnya jatuh tempo
+          (<code>tw_ai_dispatch_due</code>) dan membersihkan tugas menggantung
+          (<code>tw_ai_heartbeat</code>). Agen tetap bekerja walaupun tidak ada operator yang menekan tombol.
+        </p>
+      </div>
+
       {/* Daftar agen */}
       <h2 style={{ fontSize: 16, fontWeight: 900, marginBottom: 10 }}>Regu Agen Otonom</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -314,8 +378,26 @@ export default function AiCommandCenterPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: '#64748b' }}>
-                <span>{agent.total_runs} kali jalan • {agent.successful_runs} sukses</span>
+                <span>
+                  {agent.total_runs} kali jalan • {agent.successful_runs} sukses
+                  {agent.success_rate != null && ` (${agent.success_rate}%)`}
+                </span>
                 <span>{agent.last_run_at ? new Date(agent.last_run_at).toLocaleString('id-ID') : 'belum pernah'}</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 9.5 }}>
+                <span className={`badge ${(agent.queue_depth ?? 0) > 0 ? 'badge-amber' : 'badge-green'}`}>
+                  antrean {agent.queue_depth ?? 0}
+                </span>
+                {agent.last_status && (
+                  <span className={`badge ${agent.last_status === 'SELESAI' ? 'badge-green' : 'badge-amber'}`}>
+                    terakhir {agent.last_status}
+                  </span>
+                )}
+                {agent.silent_days != null && agent.silent_days >= 1 && (
+                  <span className="badge badge-amber">{agent.silent_days} hari senyap</span>
+                )}
+                {agent.is_overdue && <span className="badge badge-amber">jatuh tempo</span>}
               </div>
 
               <button

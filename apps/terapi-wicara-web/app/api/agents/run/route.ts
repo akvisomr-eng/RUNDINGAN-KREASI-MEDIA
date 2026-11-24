@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { AGENT_KEYS, AgentKey, claimAndRun } from '../../../../src/lib/ai/agentRuntime';
+import {
+  AGENT_KEYS,
+  AgentKey,
+  claimAndRun,
+  getAgentHealth,
+  prepareCycle,
+} from '../../../../src/lib/ai/agentRuntime';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,9 +34,12 @@ export async function GET(req: Request) {
     return runCycle([...AGENT_KEYS]);
   }
 
+  const health = await getAgentHealth();
+
   return NextResponse.json({
     status: 'ok',
     agents: AGENT_KEYS,
+    health,
     ready: Boolean(
       process.env.NEXT_PUBLIC_SUPABASE_URL &&
         (process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -41,7 +50,12 @@ export async function GET(req: Request) {
   });
 }
 
-async function runCycle(requested: AgentKey[]) {
+async function runCycle(requested: AgentKey[], dispatchFirst = true) {
+  // Langkah 1 — penjadwal otonom: daftarkan tugas agen yang jatuh tempo dan
+  // bersihkan tugas menggantung. Inilah yang membedakan sistem yang benar-benar
+  // berjalan sendiri dari sistem yang menunggu tombol manusia.
+  const prepared = dispatchFirst ? await prepareCycle(true) : null;
+
   const results = [];
   for (const key of requested) {
     const fromQueue = await claimAndRun(key);
@@ -49,11 +63,27 @@ async function runCycle(requested: AgentKey[]) {
       fromQueue ?? {
         agent: key,
         status: 'DILEWATI',
-        summary: 'Tidak ada tugas ANTREAN untuk agen ini. Picu lewat Pusat Komando AI.',
+        summary: 'Tidak ada tugas ANTREAN untuk agen ini pada siklus ini.',
       }
     );
   }
-  return NextResponse.json({ status: 'ok', executed_at: new Date().toISOString(), results });
+
+  const executed = results.filter((r) => r.status === 'SELESAI').length;
+  const failed = results.filter((r) => r.status === 'GAGAL').length;
+
+  return NextResponse.json({
+    status: 'ok',
+    executed_at: new Date().toISOString(),
+    prepared,
+    summary: {
+      dispatched: prepared?.dispatched ?? 0,
+      executed,
+      failed,
+      skipped: results.length - executed - failed,
+      expired_tasks_cleaned: prepared?.expiredTasks ?? 0,
+    },
+    results,
+  });
 }
 
 export async function POST(req: Request) {

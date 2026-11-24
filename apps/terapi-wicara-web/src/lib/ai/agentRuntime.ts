@@ -680,3 +680,82 @@ export async function claimAndRun(agentKey: AgentKey): Promise<AgentExecutionRes
   const run = runs[runs.length - 1]; // terlama (urutan id DESC)
   return runAgent(agentKey, String(run.id));
 }
+
+/* -------------------------------------------------------------------------- */
+/* PENJADWAL OTONOM                                                            */
+/* -------------------------------------------------------------------------- */
+
+export interface PrepareCycleResult {
+  ok: boolean;
+  dispatched: number;
+  expiredTasks: number;
+  degradedAgents: number;
+  pendingTotal: number;
+  error?: string;
+}
+
+/**
+ * Persiapkan siklus agen sebelum eksekusi.
+ *
+ * Ini yang membuat sistem benar-benar otonom: sebelum runtime mengklaim tugas,
+ * basis data mendaftarkan sendiri tugas untuk setiap agen yang jadwalnya sudah
+ * jatuh tempo, sekaligus membersihkan tugas yang menggantung. Tanpa langkah ini
+ * agen hanya bekerja bila ada manusia menekan tombol di Pusat Komando AI.
+ */
+export async function prepareCycle(force = true): Promise<PrepareCycleResult> {
+  const sb = adminClient();
+  if (!sb) {
+    return {
+      ok: false,
+      dispatched: 0,
+      expiredTasks: 0,
+      degradedAgents: 0,
+      pendingTotal: 0,
+      error: 'MISSING_SUPABASE_CREDENTIALS',
+    };
+  }
+
+  const { data, error } = await sb.rpc('tw_ai_prepare_cycle', { p_force: force });
+  if (error) {
+    return {
+      ok: false,
+      dispatched: 0,
+      expiredTasks: 0,
+      degradedAgents: 0,
+      pendingTotal: 0,
+      error: error.message,
+    };
+  }
+
+  const result = (data ?? {}) as Record<string, any>;
+  return {
+    ok: true,
+    dispatched: Number(result?.dispatch?.dispatched ?? 0),
+    expiredTasks: Number(result?.heartbeat?.expired_tasks ?? 0),
+    degradedAgents: Number(result?.heartbeat?.never_run_agents ?? 0),
+    pendingTotal: Number(result?.pending_total ?? 0),
+  };
+}
+
+export interface AgentHealthRow {
+  agent_key: string;
+  agent_name: string;
+  health_status: string;
+  schedule_cron: string | null;
+  success_rate: number | null;
+  queue_depth: number;
+  last_status: string | null;
+  last_summary: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
+
+/** Kesehatan seluruh agen untuk ditampilkan di Pusat Komando AI. */
+export async function getAgentHealth(): Promise<AgentHealthRow[]> {
+  const sb = adminClient();
+  if (!sb) return [];
+  const { data, error } = await sb.rpc('tw_ai_agent_health');
+  if (error) return [];
+  const rows = (data as Record<string, any>)?.agents;
+  return Array.isArray(rows) ? (rows as AgentHealthRow[]) : [];
+}
