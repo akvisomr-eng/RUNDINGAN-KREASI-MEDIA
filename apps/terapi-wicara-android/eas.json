@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 15.0.0"
+    "version": ">= 15.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -8,17 +9,29 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fawmudsaaotlqyryciwd.supabase.co",
+        "EXPO_PUBLIC_DEFAULT_EMPLOYEE_NUMBER": "TW-2023-001"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fawmudsaaotlqyryciwd.supabase.co",
+        "EXPO_PUBLIC_DEFAULT_EMPLOYEE_NUMBER": "TW-2023-001"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fawmudsaaotlqyryciwd.supabase.co",
+        "EXPO_PUBLIC_DEFAULT_EMPLOYEE_NUMBER": "TW-2023-001"
       }
     }
   }
