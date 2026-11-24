@@ -42,6 +42,29 @@ jobs:
           fi
           echo "Target: ${{ secrets.AGENT_APP_URL }}"
 
+      - name: Periksa kesiapan agen
+        if: ${{ secrets.AGENT_APP_URL != '' }}
+        run: |
+          set -euo pipefail
+          echo "### Keselamatan agen — status kesiapan" >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS "${{ secrets.AGENT_APP_URL }}/api/agents/run" -o ready.json || echo '{}' > ready.json
+          node -e '
+            const fs = require("fs");
+            let d = {};
+            try { d = JSON.parse(fs.readFileSync("ready.json", "utf8")); } catch {}
+            const lines = [];
+            lines.push("siap: " + (d.ready === true ? "ya" : "TIDAK"));
+            lines.push("agen: " + (Array.isArray(d.agents) ? d.agents.length : 0));
+            if (Array.isArray(d.health) && d.health.length) {
+              const sehat = d.health.filter(a => a.health_status === "SEHAT").length;
+              lines.push("sehat: " + sehat + "/" + d.health.length);
+              const degradasi = d.health.filter(a => a.health_status !== "SEHAT").map(a => a.agent_key);
+              if (degradasi.length) lines.push("perlu perhatian: " + degradasi.join(", "));
+            }
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.map(l => "- " + l).join("\n") + "\n");
+            console.log(lines.join(" | "));
+          '
+
       - name: Picu siklus agen
         if: ${{ secrets.AGENT_APP_URL != '' }}
         run: |
@@ -61,5 +84,19 @@ jobs:
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat result.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          # Gagalkan job bila siklus melaporkan kegagalan, agar operator
+          # mendapat notifikasi GitHub alih-alih mengira semuanya berjalan.
+          node -e '
+            const fs = require("fs");
+            let d = {};
+            try { d = JSON.parse(fs.readFileSync("result.json", "utf8")); } catch {}
+            const s = d.summary || {};
+            console.log("didaftarkan:", s.dispatched ?? 0, "selesai:", s.executed ?? 0, "gagal:", s.failed ?? 0);
+            if ((s.failed ?? 0) > 0) {
+              console.error("Ada agen yang gagal dieksekusi pada siklus ini.");
+              process.exit(1);
+            }
+          '
         env:
           AGENT_RUNNER_SECRET: ${{ secrets.AGENT_RUNNER_SECRET }}
