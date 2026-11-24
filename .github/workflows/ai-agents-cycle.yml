@@ -33,21 +33,27 @@ jobs:
     name: Jalankan agen otonom
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # `secrets` tidak boleh dipakai di dalam `if:` pada level step (GitHub
+    # menolak workflow-nya saat dispatch). Nilai rahasia dipetakan ke env job,
+    # lalu kondisi memakai env tersebut.
+    env:
+      AGENT_APP_URL: ${{ secrets.AGENT_APP_URL }}
+      AGENT_RUNNER_SECRET: ${{ secrets.AGENT_RUNNER_SECRET }}
     steps:
       - name: Validasi konfigurasi
         run: |
-          if [ -z "${{ secrets.AGENT_APP_URL }}" ]; then
+          if [ -z "${AGENT_APP_URL}" ]; then
             echo "::notice title=AGENT_APP_URL belum diset::Tambahkan secret AGENT_APP_URL berisi URL produksi Vercel agar siklus agen berjalan otomatis. Siklus manual tetap bisa dilakukan dari halaman /ai-command-center."
             exit 0
           fi
-          echo "Target: ${{ secrets.AGENT_APP_URL }}"
+          echo "Target: ${AGENT_APP_URL}"
 
       - name: Periksa kesiapan agen
-        if: ${{ secrets.AGENT_APP_URL != '' }}
+        if: env.AGENT_APP_URL != ''
         run: |
           set -euo pipefail
           echo "### Keselamatan agen — status kesiapan" >> "$GITHUB_STEP_SUMMARY"
-          curl -fsS "${{ secrets.AGENT_APP_URL }}/api/agents/run" -o ready.json || echo '{}' > ready.json
+          curl -fsS "${AGENT_APP_URL}/api/agents/run" -o ready.json || echo '{}' > ready.json
           node -e '
             const fs = require("fs");
             let d = {};
@@ -66,7 +72,7 @@ jobs:
           '
 
       - name: Picu siklus agen
-        if: ${{ secrets.AGENT_APP_URL != '' }}
+        if: env.AGENT_APP_URL != ''
         run: |
           set -euo pipefail
           BODY='{"agents":[]}'
@@ -76,7 +82,7 @@ jobs:
             BODY="{\"agents\":[$AGENTS]}"
           fi
           echo "Body: $BODY"
-          curl --fail-with-body -sS -X POST "${{ secrets.AGENT_APP_URL }}/api/agents/run" \
+          curl --fail-with-body -sS -X POST "${AGENT_APP_URL}/api/agents/run" \
             -H "Content-Type: application/json" \
             ${AGENT_RUNNER_SECRET:+-H "Authorization: Bearer $AGENT_RUNNER_SECRET"} \
             -d "$BODY" | tee result.json
@@ -98,5 +104,3 @@ jobs:
               process.exit(1);
             }
           '
-        env:
-          AGENT_RUNNER_SECRET: ${{ secrets.AGENT_RUNNER_SECRET }}
