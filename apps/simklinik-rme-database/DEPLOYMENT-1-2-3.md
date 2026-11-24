@@ -135,4 +135,20 @@ npm.cmd run build:apk:preview
 | 1. Repo mandiri `SIMKLINIK-RME` | ✅ Selesai | 53 berkas di `main`, 0 kebocoran secret |
 | 1b. Supabase `fawmudsaaotlqyryciwd` | ✅ Selesai | 27 tabel RLS `terapi_wicara`, 12 RPC `SECURITY DEFINER` |
 | 2. Web Vercel | ✅ Siap deploy (1 klik) | `next build` 0 error, 7 route, `vercel.json` + security header UU PDP |
-| 3. Android `.apk` / `.aab` | ✅ Build otomatis di cloud | `build-android-apk.yml` (JDK 17 + Android SDK, tanpa EAS) |
+| 3. Android `.apk` / `.aab` | ✅ **SUDAH TERBANGUN & TERBIT** | APK 79,9 MB & AAB 54,4 MB — [Releases](https://github.com/akvisomr-eng/RUNDINGAN-KREASI-MEDIA/releases) |
+
+---
+
+## Hasil Build APK/AAB yang Sudah Jadi
+
+Build cloud berhasil **12 menit 8 detik**, 0 error, dan berkas installer sudah diterbitkan:
+
+| Berkas | Ukuran | Unduhan |
+|---|---|---|
+| `WicaraSehat-Terapis-v1.0.0.apk` | 79,9 MB | [Unduh APK](https://github.com/akvisomr-eng/RUNDINGAN-KREASI-MEDIA/releases) |
+| `WicaraSehat-Terapis-v1.0.0.aab` | 54,4 MB | [Unduh AAB](https://github.com/akvisomr-eng/RUNDINGAN-KREASI-MEDIA/releases) |
+| Riwayat build | — | [Actions → Build Android APK & AAB](https://github.com/akvisomr-eng/RUNDINGAN-KREASI-MEDIA/actions/workflows/build-android-apk.yml) |
+
+Portal unduhan (sama, repositori mandiri): **https://github.com/akvisomr-eng/SIMKLINIK-RME/releases**
+
+> Catatan: kedua repositori memakai workflow identik. Build pertama dijalankan di `RUNDINGAN-KREASI-MEDIA`; setelah `push-to-simklinik-rme` dijalankan, jalankan **Run workflow** sekali di `SIMKLINIK-RME` dan aset `.apk` akan terbit permanen di repo mandiri tersebut.

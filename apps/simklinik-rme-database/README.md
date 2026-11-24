@@ -14,6 +14,22 @@ Seluruh skema, Row-Level Security (UU PDP No. 27/2022), 12 fungsi RPC `SECURITY 
 
 ---
 
+## 1b. ⚡ Build & Deploy Tanpa PowerShell (Rekomendasi)
+
+Kedua proses produksi dapat dijalankan **tanpa `npm.ps1` / `npx.ps1`**, sehingga error `PSSecurityException` dan `Cannot find path 'C:\Windows\system32\...'` tidak akan pernah muncul lagi.
+
+| Kebutuhan | Cara tercepat | Tanpa terminal? |
+|---|---|---|
+| Build `.apk` / `.aab` Android | Klik 2× `tools\windows\BUILD-APK-TANPA-ERROR.cmd` **atau** buka [Actions → Build Android APK & AAB](https://github.com/akvisomr-eng/SIMKLINIK-RME/actions/workflows/build-android-apk.yml) lalu **Run workflow** | ✅ Ya |
+| Deploy web ke Vercel | Klik [**Deploy with Vercel**](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fakvisomr-eng%2FSIMKLINIK-RME&root-directory=apps%2Fterapi-wicara-web) **atau** workflow `deploy-web-vercel.yml` | ✅ Ya |
+| Menu lengkap (build, deploy, cek versi, perbaiki PowerShell) | Klik 2× `tools\windows\MULAI-DI-SINI.cmd` | ✅ Ya |
+
+Build Android dijalankan di server GitHub (`ubuntu-latest` sudah berisi **JDK 17 + Android SDK + NDK**), memakai `gradlew assembleRelease` / `bundleRelease` — **tidak memerlukan EAS, akun Expo, Java, atau Android Studio di komputer Anda**. Hasil build pertama: **APK 79,9 MB + AAB 54,4 MB, selesai 12 menit, 0 error**.
+
+Panduan lengkap berurutan: [`DEPLOYMENT-1-2-3.md`](./DEPLOYMENT-1-2-3.md)
+
+---
+
 ## 2. Mengapa Push Otomatis ke `akvisomr-eng/SIMKLINIK-RME` Ditolak GitHub App (HTTP 403)?
 Sesi Arena saat ini terikat ke repositori `akvisomr-eng/RUNDINGAN-KREASI-MEDIA`, sehingga token GitHub App sandbox hanya diberi izin tulis (*repository-scoped installation token*) ke repositori sesi aktif dan belum memiliki izin tulis ke repositori baru `akvisomr-eng/SIMKLINIK-RME` (`Resource not accessible by integration - HTTP 403`).
 
