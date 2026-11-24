@@ -63,12 +63,19 @@ Copy-Item (Join-Path $SourceRoot "apps\simklinik-rme-database\README.md") (Join-
 Write-Host "==> [4/5] Inisialisasi Git & Commit Awal..." -ForegroundColor Cyan
 Push-Location $TargetDir
 git init -b main
+if ($LASTEXITCODE -ne 0) { throw "git init gagal" }
 git add -A
+if ($LASTEXITCODE -ne 0) { throw "git add gagal" }
 git commit -m "feat: standalone SIMKLINIK, RME Android, Portal Pasien & Healthcare Enterprise HQ (Skenario A + Opsi 1)"
+if ($LASTEXITCODE -ne 0) { throw "git commit gagal (pastikan git config user.name dan user.email sudah diset)" }
 
 Write-Host "==> [5/5] Push ke $RemoteUrl (branch: main)..." -ForegroundColor Cyan
 git remote add origin $RemoteUrl
 git push -u origin main
+if ($LASTEXITCODE -ne 0) {
+  Pop-Location
+  throw "git push gagal! Pastikan Git di komputer Anda sudah login ke GitHub (akvisomr-eng)."
+}
 Pop-Location
 
 Write-Host "`nSELESAI! Repositori mandiri telah berhasil terbit di: https://github.com/akvisomr-eng/SIMKLINIK-RME" -ForegroundColor Green
