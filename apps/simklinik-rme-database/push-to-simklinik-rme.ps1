@@ -24,6 +24,12 @@ robocopy (Join-Path $SourceRoot "apps\terapi-wicara-android") (Join-Path $Target
 robocopy (Join-Path $SourceRoot "apps\terapi-wicara-web")     (Join-Path $TargetDir "apps\terapi-wicara-web")     /E /XD $ExcludeDirs /XF $ExcludeFiles /NFL /NDL /NJH /NJS | Out-Null
 Copy-Item (Join-Path $SourceRoot "apps\simklinik-rme-database\migrations\*.sql") (Join-Path $TargetDir "supabase\migrations\")
 
+# Salin workflow GitHub Actions (builder APK/AAB di cloud + deploy Vercel) & skrip .cmd Windows
+New-Item -ItemType Directory -Force -Path (Join-Path $TargetDir ".github\workflows") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $TargetDir "tools\windows") | Out-Null
+Copy-Item (Join-Path $SourceRoot ".github\workflows\*.yml") (Join-Path $TargetDir ".github\workflows\")
+Copy-Item (Join-Path $SourceRoot "tools\windows\*.cmd") (Join-Path $TargetDir "tools\windows\")
+
 Write-Host "==> [3/5] Membuat berkas konfigurasi root (.gitignore, package.json, README.md)..." -ForegroundColor Cyan
 @"
 node_modules/

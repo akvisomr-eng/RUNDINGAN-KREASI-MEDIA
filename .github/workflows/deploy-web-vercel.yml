@@ -1,0 +1,109 @@
+name: Deploy Web (SIMKLINIK + Portal + Enterprise HQ) ke Vercel
+
+# ==============================================================================
+# Deploy otomatis apps/terapi-wicara-web ke Vercel Production.
+#
+# Syarat SATU KALI saja (2 menit, tanpa PowerShell):
+#   1) Buat token: https://vercel.com/account/tokens  -> salin
+#   2) Buka: Settings > Secrets and variables > Actions > New repository secret
+#      Nama: VERCEL_TOKEN          Nilai: <token tadi>
+#      Nama: VERCEL_ORG_ID         (opsional, dari .vercel/project.json)
+#      Nama: VERCEL_PROJECT_ID     (opsional, dari .vercel/project.json)
+#   3) Tab Actions -> "Deploy Web ... ke Vercel" -> Run workflow
+#
+# Tanpa token sekalipun Anda tetap bisa deploy 1 klik lewat tombol:
+#   https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fakvisomr-eng%2FSIMKLINIK-RME&root-directory=apps%2Fterapi-wicara-web
+# ==============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      production:
+        description: 'Deploy ke Production (bukan preview)'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/terapi-wicara-web/**'
+      - '.github/workflows/deploy-web-vercel.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://fawmudsaaotlqyryciwd.supabase.co' }}
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_wRGUQNJKi5XUjMXHFpDxVw_hPAPyhUc' }}
+  NEXT_PUBLIC_CLINIC_CODE: 'TW-2026'
+  NEXT_PUBLIC_CLINIC_NAME: 'Klinik Terapi Wicara WicaraSehat'
+
+jobs:
+  deploy:
+    name: Vercel CLI deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validasi ketersediaan VERCEL_TOKEN
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error title=VERCEL_TOKEN belum diset::Buka Settings > Secrets and variables > Actions, tambahkan secret VERCEL_TOKEN (https://vercel.com/account/tokens). Alternatif tanpa token: klik tombol 'Deploy with Vercel' di README."
+            exit 1
+          fi
+          echo "VERCEL_TOKEN tersedia."
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Pasang Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Tarik konfigurasi project Vercel
+        run: |
+          if [ -n "$VERCEL_PROJECT_ID" ]; then
+            vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+          else
+            echo "Project ID belum diset — CLI akan menautkan/membuat project otomatis."
+          fi
+
+      - name: Build (vercel build) atau Next.js build
+        run: |
+          if [ -f .vercel/project.json ]; then
+            vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          else
+            npm --prefix apps/terapi-wicara-web install --no-audit --no-fund
+            npm --prefix apps/terapi-wicara-web run build
+          fi
+
+      - name: Deploy ke Production
+        id: deploy
+        run: |
+          if [ -f .vercel/project.json ]; then
+            URL=$(vercel deploy --prebuilt --prod --yes --token="${{ secrets.VERCEL_TOKEN }}")
+          else
+            URL=$(vercel deploy --prod --yes \
+              --token="${{ secrets.VERCEL_TOKEN }}" \
+              --cwd apps/terapi-wicara-web \
+              -b NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+              -b NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+              -b NEXT_PUBLIC_CLINIC_CODE="$NEXT_PUBLIC_CLINIC_CODE" \
+              -b NEXT_PUBLIC_CLINIC_NAME="$NEXT_PUBLIC_CLINIC_NAME")
+          fi
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "### Web SIMKLINIK & RME ter-deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Ringkasan hasil
+        run: echo "Aplikasi web aktif di ${{ steps.deploy.outputs.deployment_url }}"

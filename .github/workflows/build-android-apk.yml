@@ -1,0 +1,169 @@
+name: Build Android APK & AAB — WicaraSehat Terapis
+
+# ==============================================================================
+# Build .apk / .aab di cloud GitHub (ubuntu-latest sudah berisi JDK 17 + Android SDK)
+# TIDAK butuh EAS account, TIDAK butuh npm/npx di Windows lokal Anda.
+#
+# Cara pakai:
+#   1) Push ke branch main / arena/**  -> build berjalan otomatis
+#   2) Atau: tab "Actions" -> "Build Android APK & AAB" -> "Run workflow"
+#   3) Unduh hasil di bagian "Artifacts" pada halaman run,
+#      atau di menu "Releases" bila dipicu lewat workflow_dispatch/tag.
+# ==============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Jenis build yang dihasilkan'
+        required: true
+        default: both
+        type: choice
+        options: [both, apk, aab]
+      publish_release:
+        description: 'Terbitkan ke GitHub Releases (mudah diunduh dari HP)'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+      - 'arena/**'
+    paths:
+      - 'apps/terapi-wicara-android/**'
+      - '.github/workflows/build-android-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Gradle assembleRelease / bundleRelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://fawmudsaaotlqyryciwd.supabase.co' }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_wRGUQNJKi5XUjMXHFpDxVw_hPAPyhUc' }}
+      EXPO_PUBLIC_DEFAULT_EMPLOYEE_NUMBER: 'TW-2023-001'
+      ANDROID_PACKAGE_NAME: 'id.wicarasehat.terapis.rme'
+      APP_VERSION_NAME: '1.0.0'
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4096m -Dorg.gradle.daemon=false'
+
+    defaults:
+      run:
+        working-directory: apps/terapi-wicara-android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/terapi-wicara-android/package-lock.json
+
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Terima lisensi Android SDK & pasang platform build
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" > /dev/null 2>&1 || \
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" > /dev/null 2>&1 || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME" || true
+
+      - name: Install dependencies (npm ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Generate native Android project (expo prebuild)
+        run: npx --yes expo prebuild --platform android --clean --no-install
+
+      - name: Pastikan debug keystore tersedia untuk signing release
+        working-directory: apps/terapi-wicara-android/android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          if [ ! -f app/debug.keystore ]; then
+            keytool -genkeypair -v -storetype PKCS12 \
+              -keystore app/debug.keystore -storepass android \
+              -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Gradle build — APK (release, signed) + AAB (Play Store)
+        working-directory: apps/terapi-wicara-android/android
+        run: |
+          set -euo pipefail
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'both' }}"
+          TASKS=""
+          if [ "$BUILD_TYPE" = "apk" ] || [ "$BUILD_TYPE" = "both" ]; then TASKS="$TASKS assembleRelease"; fi
+          if [ "$BUILD_TYPE" = "aab" ] || [ "$BUILD_TYPE" = "both" ]; then TASKS="$TASKS bundleRelease"; fi
+          echo "Menjalankan: ./gradlew $TASKS"
+          ./gradlew --no-daemon --stacktrace $TASKS
+
+      - name: Kumpulkan hasil build
+        run: |
+          set -euo pipefail
+          mkdir -p ../../artifacts
+          APK_SRC=$(find android/app/build/outputs/apk/release -name '*.apk' 2>/dev/null | head -n 1 || true)
+          AAB_SRC=$(find android/app/build/outputs/bundle/release -name '*.aab' 2>/dev/null | head -n 1 || true)
+          if [ -n "${APK_SRC:-}" ]; then
+            cp "$APK_SRC" "../../artifacts/WicaraSehat-Terapis-v${APP_VERSION_NAME}.apk"
+            ls -lh "../../artifacts/WicaraSehat-Terapis-v${APP_VERSION_NAME}.apk"
+          else
+            echo "::warning::APK tidak ditemukan pada output gradle."
+          fi
+          if [ -n "${AAB_SRC:-}" ]; then
+            cp "$AAB_SRC" "../../artifacts/WicaraSehat-Terapis-v${APP_VERSION_NAME}.aab"
+            ls -lh "../../artifacts/WicaraSehat-Terapis-v${APP_VERSION_NAME}.aab"
+          else
+            echo "::warning::AAB tidak ditemukan pada output gradle."
+          fi
+          echo "### Hasil Build" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh ../../artifacts | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact APK + AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: WicaraSehat-Terapis-Android
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Terbitkan GitHub Release (unduh langsung dari HP)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ env.APP_VERSION_NAME }}-${{ github.run_number }}
+          name: WicaraSehat Terapis RME v${{ env.APP_VERSION_NAME }} (Android)
+          body: |
+            Aplikasi Android **WicaraSehat Terapis** (RME Klinik Terapi Wicara) — build otomatis dari GitHub Actions.
+
+            - Paket: `id.wicarasehat.terapis.rme`
+            - Backend: Supabase `fawmudsaaotlqyryciwd` (SIMKLINIK & RME)
+            - Isi: `WicaraSehat-Terapis-v1.0.0.apk` (install langsung) & `.aab` (upload Play Console)
+          files: artifacts/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

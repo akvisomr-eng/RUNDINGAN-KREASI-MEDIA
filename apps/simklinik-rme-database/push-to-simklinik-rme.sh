@@ -31,6 +31,13 @@ tar -C "$SOURCE_ROOT" -cf - \
 
 cp "$SOURCE_ROOT"/apps/simklinik-rme-database/migrations/*.sql "$TARGET_DIR/supabase/migrations/"
 
+# Workflow GitHub Actions (builder APK/AAB di cloud + deploy Vercel) & skrip .cmd Windows
+mkdir -p "$TARGET_DIR/.github/workflows" "$TARGET_DIR/tools/windows"
+cp "$SOURCE_ROOT"/.github/workflows/build-android-apk.yml \
+   "$SOURCE_ROOT"/.github/workflows/deploy-web-vercel.yml \
+   "$TARGET_DIR/.github/workflows/"
+cp "$SOURCE_ROOT"/tools/windows/*.cmd "$TARGET_DIR/tools/windows/"
+
 echo "==> [3/5] Membuat berkas konfigurasi root (.gitignore, package.json, README.md)..."
 cat << 'EOF' > "$TARGET_DIR/.gitignore"
 node_modules/
