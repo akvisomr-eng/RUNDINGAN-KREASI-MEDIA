@@ -1,8 +1,12 @@
 node_modules
 .next
+.expo
+dist
+web-build
 out
 .env*
 !.env.example
 .vercel
 *.log
 .DS_Store
+
